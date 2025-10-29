@@ -12,7 +12,6 @@
 #include "fb_command_line_parser.h"
 
 #include <algorithm>
-#include <chrono>
 
 namespace {
 
@@ -164,10 +163,6 @@ void parse_options(CTX &ctx, facebook::CommandLineParser &args,
  * @param i The complexity information
  */
 void print_compl_inf(FILE *const pOut, complexity_info_t *i) {
-  static int GOP_bits = 0;
-  static int GOP_count = 0;
-
-  GOP_bits += i->bits;
   fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType,
           i->count_I, i->count_P, i->count_B, i->error, i->bits);
 }

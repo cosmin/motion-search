@@ -8,8 +8,6 @@
 #include "ComplexityAnalyzer.h"
 #include "EOFException.h"
 
-#include "motion_search.h"
-#include "frame.h"
 #include "moments.h"
 
 

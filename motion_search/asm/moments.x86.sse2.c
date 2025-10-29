@@ -7,7 +7,6 @@
  */
 
 #include "motion_search/moments.h"
-
 #include "motion_search/intrinsic.h"
 
 #if defined(_X86) || defined(_X64)

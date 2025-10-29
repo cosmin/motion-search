@@ -19,7 +19,7 @@ const char *const Signature = "YUV4MPEG2 ";
 const char *const Width = " W";
 const char *const Height = " H";
 const char *const Frame = "FRAME\n";
-}; // namespace Parameters
+} // namespace Parameters
 
 } // namespace
 
