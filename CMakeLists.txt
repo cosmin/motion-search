@@ -27,7 +27,6 @@ endif()
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_OSX_ARCHITECTURES "x86_64")
 
 add_compile_options(-fms-extensions)
 
@@ -50,15 +49,23 @@ add_library(motion_search_lib
 target_clangformat_setup(motion_search_lib)
 
 #
-# Create library : libmotion_search_lib_sse2
+# Create library : libmotion_search_lib_sse2 or libmotion_search_lib_highway
 #
 
-set(SOURCES_SSE2
-    "motion_search/asm/moments.x86.sse2.c")
-set_source_files_properties(${SOURCES_SSE2}
-    COMPILE_FLAGS "-msse2")
-add_library(motion_search_lib_sse2 ${SOURCES_SSE2})
-target_clangformat_setup(motion_search_lib_sse2)
+if(USE_HIGHWAY_SIMD)
+  # Use Highway SIMD implementation
+  set(SOURCES_SIMD "motion_search/asm/moments.highway.cpp")
+  add_library(motion_search_lib_simd ${SOURCES_SIMD})
+  target_link_libraries(motion_search_lib_simd PUBLIC hwy)
+  target_compile_definitions(motion_search_lib_simd PUBLIC USE_HIGHWAY_SIMD)
+  target_clangformat_setup(motion_search_lib_simd)
+else()
+  # Use SSE2 implementation
+  set(SOURCES_SSE2 "motion_search/asm/moments.x86.sse2.c")
+  set_source_files_properties(${SOURCES_SSE2} COMPILE_FLAGS "-msse2")
+  add_library(motion_search_lib_simd ${SOURCES_SSE2})
+  target_clangformat_setup(motion_search_lib_simd)
+endif()
 
 #
 # create binary
@@ -72,7 +79,7 @@ target_clangformat_setup(motion_search)
 
 target_link_libraries (motion_search LINK_PUBLIC
     motion_search_lib
-    motion_search_lib_sse2)
+    motion_search_lib_simd)
 
 set_target_properties(motion_search_lib PROPERTIES PUBLIC_HEADER motion_search/motion_search.h)
 
@@ -80,17 +87,26 @@ target_include_directories(motion_search_lib PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
 )
-target_include_directories(motion_search_lib_sse2 PRIVATE
+target_include_directories(motion_search_lib_simd PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
 )
+if(USE_HIGHWAY_SIMD)
+  target_compile_definitions(motion_search_lib PUBLIC USE_HIGHWAY_SIMD)
+endif()
 target_include_directories(motion_search PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic -mxsave")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic -mxsave")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic")
+
+# Add -mxsave only on x86/x64 platforms where it's supported
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mxsave")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mxsave")
+endif()
 
 configure_file(motion_search.pc.in motion_search.pc @ONLY)
 
@@ -109,7 +125,7 @@ ADD_CUSTOM_TARGET(release
 install(TARGETS motion_search_lib
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(TARGETS motion_search_lib_sse2
+install(TARGETS motion_search_lib_simd
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
