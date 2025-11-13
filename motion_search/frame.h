@@ -7,12 +7,12 @@
 
 #pragma once
 
+#include "common.h"
+#include "string.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "common.h"
-#include "string.h"
 
 void extend_frame(uint8_t *frame_ptr, const ptrdiff_t stride, const DIM dim,
                   int pad_size_x, int pad_size_y);
