@@ -17,9 +17,15 @@
 // When USE_HIGHWAY_SIMD is enabled, use Highway implementations directly
 // Highway has its own dynamic dispatch mechanism
 
-int fastSAD16(FAST_SAD_FORMAL_ARGS) { return fastSAD16_hwy(FAST_SAD_ACTUAL_ARGS); }
-int fastSAD8(FAST_SAD_FORMAL_ARGS) { return fastSAD8_hwy(FAST_SAD_ACTUAL_ARGS); }
-int fastSAD4(FAST_SAD_FORMAL_ARGS) { return fastSAD4_hwy(FAST_SAD_ACTUAL_ARGS); }
+int fastSAD16(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD16_hwy(FAST_SAD_ACTUAL_ARGS);
+}
+int fastSAD8(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD8_hwy(FAST_SAD_ACTUAL_ARGS);
+}
+int fastSAD4(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD4_hwy(FAST_SAD_ACTUAL_ARGS);
+}
 
 int fast_variance16(FAST_VARIANCE_FORMAL_ARGS) {
   return fast_variance16_hwy(FAST_VARIANCE_ACTUAL_ARGS);
@@ -80,7 +86,7 @@ IMPL_PROC_1(int, fast_bidir_mse8, (FAST_BIDIR_MSE_FORMAL_ARGS),
 IMPL_PROC_1(int, fast_bidir_mse4, (FAST_BIDIR_MSE_FORMAL_ARGS),
             (FAST_BIDIR_MSE_ACTUAL_ARGS), sse2)
 
-#endif  // USE_HIGHWAY_SIMD
+#endif // USE_HIGHWAY_SIMD
 
 #elif defined(_ARM) || defined(_ARM64)
 

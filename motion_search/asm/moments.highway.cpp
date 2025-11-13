@@ -22,8 +22,7 @@ namespace HWY_NAMESPACE {
 namespace hn = hwy::HWY_NAMESPACE;
 
 // Helper function to perform horizontal sum of a vector
-template <class D, class V>
-HWY_INLINE int HorizontalSum(D d, V v) {
+template <class D, class V> HWY_INLINE int HorizontalSum(D d, V v) {
   const size_t N = hn::Lanes(d);
   HWY_ALIGN int32_t lanes[HWY_MAX_LANES_D(D)];
   hn::Store(v, d, lanes);
@@ -442,10 +441,10 @@ int fast_bidir_mse16_highway(FAST_BIDIR_MSE_FORMAL_ARGS) {
     auto td_y_vec = hn::Set(d16, td_y);
     auto td_x_vec = hn::Set(d16, td_x);
 
-    auto interp_lo = hn::Add(hn::Mul(ref1_lo, td_y_vec),
-                              hn::Mul(ref2_lo, td_x_vec));
-    auto interp_hi = hn::Add(hn::Mul(ref1_hi, td_y_vec),
-                              hn::Mul(ref2_hi, td_x_vec));
+    auto interp_lo =
+        hn::Add(hn::Mul(ref1_lo, td_y_vec), hn::Mul(ref2_lo, td_x_vec));
+    auto interp_hi =
+        hn::Add(hn::Mul(ref1_hi, td_y_vec), hn::Mul(ref2_hi, td_x_vec));
 
     // Add 16384 and shift right by 15
     auto offset = hn::Set(d16, 16384);
@@ -523,10 +522,10 @@ int fast_bidir_mse8_highway(FAST_BIDIR_MSE_FORMAL_ARGS) {
     auto td_y_vec = hn::Set(d16, td_y);
     auto td_x_vec = hn::Set(d16, td_x);
 
-    auto interp_lo = hn::Add(hn::Mul(ref1_lo, td_y_vec),
-                              hn::Mul(ref2_lo, td_x_vec));
-    auto interp_hi = hn::Add(hn::Mul(ref1_hi, td_y_vec),
-                              hn::Mul(ref2_hi, td_x_vec));
+    auto interp_lo =
+        hn::Add(hn::Mul(ref1_lo, td_y_vec), hn::Mul(ref2_lo, td_x_vec));
+    auto interp_hi =
+        hn::Add(hn::Mul(ref1_hi, td_y_vec), hn::Mul(ref2_hi, td_x_vec));
 
     auto offset = hn::Set(d16, 16384);
     interp_lo = hn::Add(interp_lo, offset);
@@ -601,10 +600,10 @@ int fast_bidir_mse4_highway(FAST_BIDIR_MSE_FORMAL_ARGS) {
     auto td_y_vec = hn::Set(d16, td_y);
     auto td_x_vec = hn::Set(d16, td_x);
 
-    auto interp_lo = hn::Add(hn::Mul(ref1_lo, td_y_vec),
-                              hn::Mul(ref2_lo, td_x_vec));
-    auto interp_hi = hn::Add(hn::Mul(ref1_hi, td_y_vec),
-                              hn::Mul(ref2_hi, td_x_vec));
+    auto interp_lo =
+        hn::Add(hn::Mul(ref1_lo, td_y_vec), hn::Mul(ref2_lo, td_x_vec));
+    auto interp_hi =
+        hn::Add(hn::Mul(ref1_hi, td_y_vec), hn::Mul(ref2_hi, td_x_vec));
 
     auto offset = hn::Set(d16, 16384);
     interp_lo = hn::Add(interp_lo, offset);
@@ -650,8 +649,8 @@ int fast_bidir_mse4_highway(FAST_BIDIR_MSE_FORMAL_ARGS) {
   return sum2;
 }
 
-}  // namespace HWY_NAMESPACE
-}  // namespace motion_search
+} // namespace HWY_NAMESPACE
+} // namespace motion_search
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
@@ -692,11 +691,13 @@ int fast_variance16_hwy(FAST_VARIANCE_FORMAL_ARGS) {
 }
 
 int fast_variance8_hwy(FAST_VARIANCE_FORMAL_ARGS) {
-  return HWY_DYNAMIC_DISPATCH(fast_variance8_highway)(FAST_VARIANCE_ACTUAL_ARGS);
+  return HWY_DYNAMIC_DISPATCH(fast_variance8_highway)(
+      FAST_VARIANCE_ACTUAL_ARGS);
 }
 
 int fast_variance4_hwy(FAST_VARIANCE_FORMAL_ARGS) {
-  return HWY_DYNAMIC_DISPATCH(fast_variance4_highway)(FAST_VARIANCE_ACTUAL_ARGS);
+  return HWY_DYNAMIC_DISPATCH(fast_variance4_highway)(
+      FAST_VARIANCE_ACTUAL_ARGS);
 }
 
 int fast_calc_mse16_hwy(FAST_MSE_FORMAL_ARGS) {
@@ -726,7 +727,7 @@ int fast_bidir_mse4_hwy(FAST_BIDIR_MSE_FORMAL_ARGS) {
       FAST_BIDIR_MSE_ACTUAL_ARGS);
 }
 
-}  // extern "C"
+} // extern "C"
 
-}  // namespace motion_search
-#endif  // HWY_ONCE
+} // namespace motion_search
+#endif // HWY_ONCE
