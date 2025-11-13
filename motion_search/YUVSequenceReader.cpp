@@ -6,8 +6,8 @@
  LICENSE file in the root directory of this source tree.
  */
 
-#include "EOFException.h"
 #include "YUVSequenceReader.h"
+#include "EOFException.h"
 
 #include <sys/stat.h>
 
