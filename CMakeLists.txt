@@ -11,7 +11,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 
 # Highway SIMD library
-option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations instead of SSE2" OFF)
+option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations instead of SSE2" ON)
 if(USE_HIGHWAY_SIMD)
   include(FetchContent)
   FetchContent_Declare(
