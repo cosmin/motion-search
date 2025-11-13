@@ -79,49 +79,66 @@ const char *const BFrames = "b";
 
 void PrintUsage(const char *const appName) {
 
-  fprintf(stderr, 
+  fprintf(
+      stderr,
       "Usage: %s <input_file> [-%s=<width>] [-%s=<height>] [-%s=<num_frames>] "
       "[-%s=<color_format>] [-%s=<gop>] [-%s=<bframes>] <output_file>\n",
       appName, Options::Width, Options::Height, Options::NumFrames,
       Options::ColorFormat, Options::Gop, Options::BFrames);
   fprintf(stderr, "\n");
   fprintf(stderr, "Parameters:\n");
-  fprintf(stderr, "<input_file> ... The file to be read. It can be a '.yuv' or '.y4m' "
-         "file containing YUV frames,\n");
-  fprintf(stderr, 
+  fprintf(stderr,
+          "<input_file> ... The file to be read. It can be a '.yuv' or '.y4m' "
+          "file containing YUV frames,\n");
+  fprintf(
+      stderr,
       "                 At present only these two file types are supported\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "<width> ........ The width of the picture in the file. This "
-         "parameter must be passed\n");
-  fprintf(stderr, 
+                  "parameter must be passed\n");
+  fprintf(
+      stderr,
       "                 in for '.yuv' file types. Ignored for '.y4m' files.\n");
-  fprintf(stderr, "                 Note the input picture is not resampled. This "
-         "parameter\n");
-  fprintf(stderr, "                 is only used to get the picture size for files that "
-         "do not have any\n");
+  fprintf(stderr,
+          "                 Note the input picture is not resampled. This "
+          "parameter\n");
+  fprintf(
+      stderr,
+      "                 is only used to get the picture size for files that "
+      "do not have any\n");
   fprintf(stderr, "                 mechanism to signal it.\n");
   fprintf(stderr, "\n");
-  fprintf(stderr, "<height> ....... The height of the picture in the file. This "
-         "parameter must be passed\n");
-  fprintf(stderr, 
+  fprintf(stderr,
+          "<height> ....... The height of the picture in the file. This "
+          "parameter must be passed\n");
+  fprintf(
+      stderr,
       "                 in for '.yuv' file types. Ignored for '.y4m' files.\n");
-  fprintf(stderr, "                 Note the input picture is not resampled. This "
-         "parameter\n");
-  fprintf(stderr, "                 is only used to get the picture size for files that "
-         "do not have any\n");
+  fprintf(stderr,
+          "                 Note the input picture is not resampled. This "
+          "parameter\n");
+  fprintf(
+      stderr,
+      "                 is only used to get the picture size for files that "
+      "do not have any\n");
   fprintf(stderr, "                 mechanism to signal it.\n");
   fprintf(stderr, "\n");
-  fprintf(stderr, "<num_frames> ... The number of frames to procees (default: the whole "
-         "stream)\n");
+  fprintf(
+      stderr,
+      "<num_frames> ... The number of frames to procees (default: the whole "
+      "stream)\n");
   fprintf(stderr, "\n");
-  fprintf(stderr, "<color_format> . The used color format, ignored for '.y4m' file "
-         "types (default: I420)\n");
+  fprintf(stderr,
+          "<color_format> . The used color format, ignored for '.y4m' file "
+          "types (default: I420)\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "<gop> .......... GOP size to use (default: 150)\n");
-  fprintf(stderr, "<bframes> ...... number of consecutive B-frames (default: 0)\n");
+  fprintf(stderr,
+          "<bframes> ...... number of consecutive B-frames (default: 0)\n");
   fprintf(stderr, "\n");
-  fprintf(stderr, "<output_file> .. The complexity information is written out to this "
-         "file.\n");
+  fprintf(stderr,
+          "<output_file> .. The complexity information is written out to this "
+          "file.\n");
   fprintf(stderr, "\n");
   exit(-1);
 }
@@ -134,7 +151,8 @@ void parse_options(CTX &ctx, facebook::CommandLineParser &args,
   }
 
   if (args.NumFileNames() < 2) {
-    fprintf(stderr, "\nError: You must provide two file names, input and output\n");
+    fprintf(stderr,
+            "\nError: You must provide two file names, input and output\n");
     exit(-1);
   }
 
@@ -159,13 +177,13 @@ void parse_options(CTX &ctx, facebook::CommandLineParser &args,
 
 /**
  * @brief Print the complexity information to the output file in CSV format
- * 
+ *
  * @param pOut The output file
  * @param i The complexity information
  */
 void print_compl_inf(FILE *const pOut, complexity_info_t *i) {
-  fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType,
-          i->count_I, i->count_P, i->count_B, i->error, i->bits);
+  fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType, i->count_I,
+          i->count_P, i->count_B, i->error, i->bits);
 }
 
 } // namespace
@@ -186,7 +204,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  ComplexityAnalyzer analyzer(reader.get(), ctx.gop_size, ctx.num_frames, ctx.b_frames);
+  ComplexityAnalyzer analyzer(reader.get(), ctx.gop_size, ctx.num_frames,
+                              ctx.b_frames);
 
   const auto begin = std::chrono::high_resolution_clock::now();
   analyzer.analyze();

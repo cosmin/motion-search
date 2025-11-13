@@ -10,15 +10,14 @@
 
 #include "moments.h"
 
-
-
 ComplexityAnalyzer::ComplexityAnalyzer(IVideoSequenceReader *reader,
-                                       int gop_size, int num_frames, int b_frames)
+                                       int gop_size, int num_frames,
+                                       int b_frames)
     : m_dim(reader->dim()),
       m_stride(reader->dim().width + 2 * HORIZONTAL_PADDING),
       m_padded_height(reader->dim().height + 2 * VERTICAL_PADDING),
-      m_num_frames(num_frames), m_GOP_size(gop_size), m_subGOP_size(b_frames + 1),
-      m_pReader(reader), m_pReorderedInfo(NULL) {
+      m_num_frames(num_frames), m_GOP_size(gop_size),
+      m_subGOP_size(b_frames + 1), m_pReader(reader), m_pReorderedInfo(NULL) {
   m_GOP_error = 0;
   m_GOP_bits = 0;
   m_GOP_count = 0;
@@ -36,14 +35,14 @@ ComplexityAnalyzer::ComplexityAnalyzer(IVideoSequenceReader *reader,
   const size_t numItems = (size_t)(stride_MB) * (padded_height_MB);
   m_mses = memory::AlignedAlloc<int>(numItems);
   if (m_mses == NULL) {
-    fprintf(stderr, "Not enough memory (%zu bytes) for %s\n", numItems * sizeof(int),
-           "m_mses");
+    fprintf(stderr, "Not enough memory (%zu bytes) for %s\n",
+            numItems * sizeof(int), "m_mses");
     exit(-1);
   }
   m_MB_modes = memory::AlignedAlloc<unsigned char>(numItems);
   if (m_MB_modes == NULL) {
     fprintf(stderr, "Not enough memory (%zu bytes) for %s\n",
-           numItems * sizeof(unsigned char), "m_MB_modes");
+            numItems * sizeof(unsigned char), "m_MB_modes");
     exit(-1);
   }
 }

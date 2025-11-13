@@ -38,11 +38,11 @@ extern "C" {
 
 // Currently, MB_WIDTH can take values 8 or 16
 #define MB_WIDTH 16
-//#define MB_WIDTH 8
+// #define MB_WIDTH 8
 
 // SEARCH_MV switches between PMVFAST and full_search
 #define SEARCH_MV PMVFAST
-//#define SEARCH_MV full_search
+// #define SEARCH_MV full_search
 
 // There are 2 strategies for "median" predictor in PMVFAST, mean or median
 #define USE_MEAN
@@ -52,7 +52,7 @@ extern "C" {
 #define AC_ENERGY
 
 // The value to use for the frame border; smaller value forces diamond search
-//#define BORDER_SADS 2*MB_WIDTH*MB_WIDTH
+// #define BORDER_SADS 2*MB_WIDTH*MB_WIDTH
 #define BORDER_SADS 0
 
 // We are weighting I-frames by 10% more bits, since QP needs to be the lowest
