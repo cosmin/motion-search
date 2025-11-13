@@ -8,9 +8,10 @@
 
 #include "moments.h"
 
-// Dispatcher functions that route to either Highway SIMD or pure C implementations
-// When USE_HIGHWAY_SIMD is enabled, Highway handles target-specific dispatch internally
-// When USE_HIGHWAY_SIMD is disabled, calls fall back to pure C reference implementations
+// Dispatcher functions that route to either Highway SIMD or pure C
+// implementations When USE_HIGHWAY_SIMD is enabled, Highway handles
+// target-specific dispatch internally When USE_HIGHWAY_SIMD is disabled, calls
+// fall back to pure C reference implementations
 
 #ifdef USE_HIGHWAY_SIMD
 
@@ -72,13 +73,9 @@ int fastSAD16(FAST_SAD_FORMAL_ARGS) {
   return fastSAD16_c(FAST_SAD_ACTUAL_ARGS);
 }
 
-int fastSAD8(FAST_SAD_FORMAL_ARGS) {
-  return fastSAD8_c(FAST_SAD_ACTUAL_ARGS);
-}
+int fastSAD8(FAST_SAD_FORMAL_ARGS) { return fastSAD8_c(FAST_SAD_ACTUAL_ARGS); }
 
-int fastSAD4(FAST_SAD_FORMAL_ARGS) {
-  return fastSAD4_c(FAST_SAD_ACTUAL_ARGS);
-}
+int fastSAD4(FAST_SAD_FORMAL_ARGS) { return fastSAD4_c(FAST_SAD_ACTUAL_ARGS); }
 
 int fast_variance16(FAST_VARIANCE_FORMAL_ARGS) {
   return fast_variance16_c(FAST_VARIANCE_ACTUAL_ARGS);
@@ -116,4 +113,4 @@ int fast_bidir_mse4(FAST_BIDIR_MSE_FORMAL_ARGS) {
   return fast_bidir_mse4_c(FAST_BIDIR_MSE_ACTUAL_ARGS);
 }
 
-#endif  // USE_HIGHWAY_SIMD
+#endif // USE_HIGHWAY_SIMD
