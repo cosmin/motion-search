@@ -1,0 +1,44 @@
+name: Format Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format-check:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+
+    - name: Check formatting
+      run: |
+        cd build
+        cmake --build . --target format-check || echo "Note: format-check target may not exist yet"
+
+    - name: Run clang-format check
+      run: |
+        # Find all C/C++ source files and check formatting
+        find motion_search tests -name '*.c' -o -name '*.cpp' -o -name '*.h' | while read file; do
+          clang-format --dry-run --Werror "$file" || {
+            echo "❌ Formatting issues found in $file"
+            echo "Run 'clang-format -i $file' to fix"
+            exit 1
+          }
+        done
+        echo "✅ All files are properly formatted"
