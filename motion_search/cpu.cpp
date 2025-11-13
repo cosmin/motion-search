@@ -93,7 +93,8 @@ static eCPUType QueryCpuType(void) {
       if (AVX512DQ_BIT & ebx) {
         cpuType = static_cast<eCPUType>(cpuType | cpu_avx512dq);
       }
-      cpuType = static_cast<eCPUType>((ebx & AVX2_BIT) ? (cpu_avx2) : (cpu_avx));
+      cpuType =
+          static_cast<eCPUType>((ebx & AVX2_BIT) ? (cpu_avx2) : (cpu_avx));
     } else {
       cpuType = cpu_sse42;
     }
@@ -152,7 +153,7 @@ static eCPUType QueryCpuType() { return cpuPlain; }
 
 static eCPUType g_cpuType = cpuUnk;
 
- eCPUType GetCpuType(void) {
+eCPUType GetCpuType(void) {
   if (cpuUnk == g_cpuType) {
     g_cpuType = QueryCpuType();
   }
