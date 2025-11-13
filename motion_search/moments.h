@@ -103,6 +103,26 @@ int fast_bidir_mse4_sse2(FAST_BIDIR_MSE_FORMAL_ARGS);
 
 #endif /* defined(_X86) || defined(_X64) */
 
+/*
+    declare Highway SIMD functions
+*/
+
+int fastSAD16_hwy(FAST_SAD_FORMAL_ARGS);
+int fastSAD8_hwy(FAST_SAD_FORMAL_ARGS);
+int fastSAD4_hwy(FAST_SAD_FORMAL_ARGS);
+
+int fast_variance16_hwy(FAST_VARIANCE_FORMAL_ARGS);
+int fast_variance8_hwy(FAST_VARIANCE_FORMAL_ARGS);
+int fast_variance4_hwy(FAST_VARIANCE_FORMAL_ARGS);
+
+int fast_calc_mse16_hwy(FAST_MSE_FORMAL_ARGS);
+int fast_calc_mse8_hwy(FAST_MSE_FORMAL_ARGS);
+int fast_calc_mse4_hwy(FAST_MSE_FORMAL_ARGS);
+
+int fast_bidir_mse16_hwy(FAST_BIDIR_MSE_FORMAL_ARGS);
+int fast_bidir_mse8_hwy(FAST_BIDIR_MSE_FORMAL_ARGS);
+int fast_bidir_mse4_hwy(FAST_BIDIR_MSE_FORMAL_ARGS);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
