@@ -10,6 +10,20 @@ include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 
+# Highway SIMD library
+option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations instead of SSE2" OFF)
+if(USE_HIGHWAY_SIMD)
+  include(FetchContent)
+  FetchContent_Declare(
+    highway
+    GIT_REPOSITORY https://github.com/google/highway.git
+    GIT_TAG 1.2.0
+  )
+  set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+  set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(highway)
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
