@@ -8,6 +8,8 @@
 #include "MotionVectorField.h"
 
 #include "motion_search.h"
+#include <cstdlib>
+#include <cstring>
 
 MotionVectorField::MotionVectorField(const DIM dim, int stride,
                                      int padded_height, int blocksize)

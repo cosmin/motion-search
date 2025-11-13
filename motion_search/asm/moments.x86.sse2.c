@@ -404,8 +404,8 @@ int fast_calc_mse4_sse2(FAST_MSE_FORMAL_ARGS) {
 int fast_bidir_mse16_sse2(FAST_BIDIR_MSE_FORMAL_ARGS) {
   UNUSED(block_width);
 
-  static const __declspec(align(16)) int constant_16384[4] = {16384, 16384,
-                                                              16384, 16384};
+  static const int constant_16384[4] __attribute__((aligned(16))) = {16384, 16384,
+                                                                     16384, 16384};
   int i;
   int sum2;
 #ifdef AC_ENERGY
@@ -505,8 +505,8 @@ int fast_bidir_mse16_sse2(FAST_BIDIR_MSE_FORMAL_ARGS) {
 int fast_bidir_mse8_sse2(FAST_BIDIR_MSE_FORMAL_ARGS) {
   UNUSED(block_width);
 
-  static const __declspec(align(16)) int constant_16384[4] = {16384, 16384,
-                                                              16384, 16384};
+  static const int constant_16384[4] __attribute__((aligned(16))) = {16384, 16384,
+                                                                     16384, 16384};
   int i;
   int sum2;
 #ifdef AC_ENERGY
@@ -582,8 +582,8 @@ int fast_bidir_mse8_sse2(FAST_BIDIR_MSE_FORMAL_ARGS) {
 int fast_bidir_mse4_sse2(FAST_BIDIR_MSE_FORMAL_ARGS) {
   UNUSED(block_width);
 
-  static const __declspec(align(16)) int constant_16384[4] = {16384, 16384,
-                                                              16384, 16384};
+  static const int constant_16384[4] __attribute__((aligned(16))) = {16384, 16384,
+                                                                     16384, 16384};
   int i;
   int sum2;
 #ifdef AC_ENERGY

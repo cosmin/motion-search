@@ -3,6 +3,10 @@ project (motion_search VERSION 0.0.1 DESCRIPTION "compute motion search for vide
 set (CMAKE_CXX_STANDARD 17)
 include(GNUInstallDirs)
 
+# Testing support
+option(BUILD_TESTING "Build the testing tree" ON)
+include(CTest)
+
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 
@@ -96,3 +100,19 @@ install(TARGETS motion_search_lib_sse2
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(FILES ${CMAKE_BINARY_DIR}/motion_search.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+# Testing
+if(BUILD_TESTING)
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  enable_testing()
+  add_subdirectory(tests)
+endif()
