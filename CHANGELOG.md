@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+#### Optional Pure C Fallback
+
+- Added `USE_HIGHWAY_SIMD` CMake option (default: ON)
+  - When enabled (default): Uses Highway SIMD for optimal performance
+  - When disabled: Falls back to pure C reference implementations
+- Useful for research, debugging, or systems where Highway is unavailable
+- Pure C mode produces identical results but with 2-4x slower performance
+
 ### Changed - Highway SIMD Migration
 
 This release represents a complete modernization of the codebase, migrating from platform-specific SSE2 intrinsics to Google's Highway library for portable, cross-platform SIMD support.

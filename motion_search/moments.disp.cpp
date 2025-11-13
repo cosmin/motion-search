@@ -8,8 +8,13 @@
 
 #include "moments.h"
 
-// Simple wrapper functions that dispatch to Highway SIMD implementations
-// Highway handles target-specific dispatch internally
+// Dispatcher functions that route to either Highway SIMD or pure C implementations
+// When USE_HIGHWAY_SIMD is enabled, Highway handles target-specific dispatch internally
+// When USE_HIGHWAY_SIMD is disabled, calls fall back to pure C reference implementations
+
+#ifdef USE_HIGHWAY_SIMD
+
+// Highway SIMD implementations (cross-platform, auto-dispatching)
 
 int fastSAD16(FAST_SAD_FORMAL_ARGS) {
   return fastSAD16_hwy(FAST_SAD_ACTUAL_ARGS);
@@ -58,3 +63,57 @@ int fast_bidir_mse8(FAST_BIDIR_MSE_FORMAL_ARGS) {
 int fast_bidir_mse4(FAST_BIDIR_MSE_FORMAL_ARGS) {
   return fast_bidir_mse4_hwy(FAST_BIDIR_MSE_ACTUAL_ARGS);
 }
+
+#else
+
+// Pure C reference implementations (portable, slower)
+
+int fastSAD16(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD16_c(FAST_SAD_ACTUAL_ARGS);
+}
+
+int fastSAD8(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD8_c(FAST_SAD_ACTUAL_ARGS);
+}
+
+int fastSAD4(FAST_SAD_FORMAL_ARGS) {
+  return fastSAD4_c(FAST_SAD_ACTUAL_ARGS);
+}
+
+int fast_variance16(FAST_VARIANCE_FORMAL_ARGS) {
+  return fast_variance16_c(FAST_VARIANCE_ACTUAL_ARGS);
+}
+
+int fast_variance8(FAST_VARIANCE_FORMAL_ARGS) {
+  return fast_variance8_c(FAST_VARIANCE_ACTUAL_ARGS);
+}
+
+int fast_variance4(FAST_VARIANCE_FORMAL_ARGS) {
+  return fast_variance4_c(FAST_VARIANCE_ACTUAL_ARGS);
+}
+
+int fast_calc_mse16(FAST_MSE_FORMAL_ARGS) {
+  return fast_calc_mse16_c(FAST_MSE_ACTUAL_ARGS);
+}
+
+int fast_calc_mse8(FAST_MSE_FORMAL_ARGS) {
+  return fast_calc_mse8_c(FAST_MSE_ACTUAL_ARGS);
+}
+
+int fast_calc_mse4(FAST_MSE_FORMAL_ARGS) {
+  return fast_calc_mse4_c(FAST_MSE_ACTUAL_ARGS);
+}
+
+int fast_bidir_mse16(FAST_BIDIR_MSE_FORMAL_ARGS) {
+  return fast_bidir_mse16_c(FAST_BIDIR_MSE_ACTUAL_ARGS);
+}
+
+int fast_bidir_mse8(FAST_BIDIR_MSE_FORMAL_ARGS) {
+  return fast_bidir_mse8_c(FAST_BIDIR_MSE_ACTUAL_ARGS);
+}
+
+int fast_bidir_mse4(FAST_BIDIR_MSE_FORMAL_ARGS) {
+  return fast_bidir_mse4_c(FAST_BIDIR_MSE_ACTUAL_ARGS);
+}
+
+#endif  // USE_HIGHWAY_SIMD

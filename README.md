@@ -37,12 +37,29 @@ Create a build folder and run CMake, then `make`:
 mkdir build
 cd build
 cmake ..
-make -j $(nproc)
+make -j8
 ```
 
 The `motion-search` executable will be created in the `build/bin` folder.
 
-**Note**: CMake will automatically download and build [Google Highway](https://github.com/google/highway) v1.2.0 for portable SIMD operations. Highway provides cross-platform vectorization that works on x86 (SSE2/AVX2/AVX-512), ARM (NEON), and other architectures.
+**Note**: By default, CMake will automatically download and build [Google Highway](https://github.com/google/highway) v1.2.0 for portable SIMD operations. Highway provides cross-platform vectorization that works on x86 (SSE2/AVX2/AVX-512), ARM (NEON), and other architectures.
+
+### Build Options
+
+#### SIMD Support (USE_HIGHWAY_SIMD)
+
+By default, the project builds with Highway SIMD support for optimal performance. You can disable Highway and use pure C implementations instead:
+
+```shell
+cmake .. -DUSE_HIGHWAY_SIMD=OFF
+```
+
+**When to disable Highway:**
+- Systems where Highway is not compatible or available
+- Research or debugging purposes where predictable C code is preferred
+- Environments with limited build resources
+
+**Performance impact:** Pure C implementations are significantly slower (2-4x) than SIMD-optimized code, but produce identical results for testing and validation.
 
 ## Testing
 
