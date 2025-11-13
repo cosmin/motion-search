@@ -9,6 +9,7 @@
 #include "Y4MSequenceReader.h"
 
 #include "EOFException.h"
+#include <cstring>
 
 namespace {
 
