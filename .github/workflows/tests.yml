@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Build and Test (${{ matrix.os }}, ${{ matrix.build_type }})
+    name: Build and Test (${{ matrix.os }}, ${{ matrix.build_type }}${{ matrix.simd_mode && format(', {0}', matrix.simd_mode) || '' }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -16,6 +16,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-13, macos-latest]
         build_type: [Debug, Release]
+        include:
+          # Add one pure C build to test the non-Highway code path
+          - os: ubuntu-latest
+            build_type: Release
+            simd_mode: pure_c
+            cmake_flags: -DUSE_HIGHWAY_SIMD=OFF
 
     steps:
     - name: Checkout code
@@ -36,7 +42,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_flags || '' }}
 
     - name: Build
       run: |
@@ -77,7 +83,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
+        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}${{ matrix.simd_mode && format('-{0}', matrix.simd_mode) || '' }}
         path: |
           build/test-results-*.xml
           build/Testing/*/Test.xml
@@ -87,5 +93,5 @@ jobs:
       uses: mikepenz/action-junit-report@v4
       with:
         report_paths: 'build/test-results-*.xml'
-        check_name: Test Results (${{ matrix.os }}, ${{ matrix.build_type }})
+        check_name: Test Results (${{ matrix.os }}, ${{ matrix.build_type }}${{ matrix.simd_mode && format(', {0}', matrix.simd_mode) || '' }})
         fail_on_failure: false
