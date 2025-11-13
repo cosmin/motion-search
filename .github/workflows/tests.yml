@@ -58,20 +58,20 @@ jobs:
         cd build
         ./bin/test_frame --gtest_output=xml:test-results-frame.xml
 
+    - name: Run motion search tests
+      run: |
+        cd build
+        ./bin/test_motion_search --gtest_output=xml:test-results-motion.xml
+
     - name: Run integration tests
       run: |
         cd build
         ./bin/test_integration --gtest_output=xml:test-results-integration.xml
 
-    - name: Run motion search tests
-      run: |
-        cd build
-        ./bin/test_motion_search --gtest_output=xml:test-results-motion.xml || true
-
     - name: Run all tests with CTest
       run: |
         cd build
-        ctest --output-on-failure --no-compress-output -T Test || true
+        ctest --output-on-failure --no-compress-output -T Test
 
     - name: Upload test results
       if: always()

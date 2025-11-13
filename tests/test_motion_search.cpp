@@ -171,7 +171,9 @@ TEST_F(MotionSearchTest, MotionSearch_ZeroMotion) {
   int num_blocks_x = width / block_width;
   int num_blocks_y = height / block_height;
   int stride_MB = width / MB_WIDTH + 2;
-  int array_size = num_blocks_y * stride_MB;
+  int padded_height_MB = (height + MB_WIDTH - 1) / MB_WIDTH + 2;
+  int array_size = stride_MB * padded_height_MB;
+  int firstMB = stride_MB + 1;
 
   std::vector<MV> motion_vectors(array_size);
   std::vector<int> SADs(array_size);
@@ -181,11 +183,16 @@ TEST_F(MotionSearchTest, MotionSearch_ZeroMotion) {
   int count_P = 0;
   int bits = 0;
 
+  // Initialize padding with border values
+  for (int j = 0; j < stride_MB; j++) {
+    SADs[j] = 65535;
+  }
+
   // Motion search with same frame as reference
   int result =
       motion_search(center, center, stride, dim, block_width, block_height,
-                    motion_vectors.data(), SADs.data(), mses.data(),
-                    MB_modes.data(), &count_I, &count_P, &bits);
+                    motion_vectors.data() + firstMB, SADs.data() + firstMB,
+                    mses.data(), MB_modes.data(), &count_I, &count_P, &bits);
 
   EXPECT_GE(result, 0) << "Result (MSE) should be non-negative";
 
@@ -193,9 +200,9 @@ TEST_F(MotionSearchTest, MotionSearch_ZeroMotion) {
   for (int y = 0; y < num_blocks_y; y++) {
     for (int x = 0; x < num_blocks_x; x++) {
       int idx = y * stride_MB + x;
-      EXPECT_EQ(0, motion_vectors[idx].x)
+      EXPECT_EQ(0, motion_vectors[firstMB + idx].x)
           << "MV x should be 0 at block " << idx;
-      EXPECT_EQ(0, motion_vectors[idx].y)
+      EXPECT_EQ(0, motion_vectors[firstMB + idx].y)
           << "MV y should be 0 at block " << idx;
     }
   }
@@ -247,7 +254,9 @@ TEST_F(MotionSearchTest, MotionSearch_KnownMotion) {
   int num_blocks_x = width / block_width;
   int num_blocks_y = height / block_height;
   int stride_MB = width / MB_WIDTH + 2;
-  int array_size = num_blocks_y * stride_MB;
+  int padded_height_MB = (height + MB_WIDTH - 1) / MB_WIDTH + 2;
+  int array_size = stride_MB * padded_height_MB;
+  int firstMB = stride_MB + 1;
 
   std::vector<MV> motion_vectors(array_size);
   std::vector<int> SADs(array_size);
@@ -257,10 +266,15 @@ TEST_F(MotionSearchTest, MotionSearch_KnownMotion) {
   int count_P = 0;
   int bits = 0;
 
+  // Initialize padding with border values
+  for (int j = 0; j < stride_MB; j++) {
+    SADs[j] = 65535;
+  }
+
   int result =
       motion_search(current, reference, stride, dim, block_width, block_height,
-                    motion_vectors.data(), SADs.data(), mses.data(),
-                    MB_modes.data(), &count_I, &count_P, &bits);
+                    motion_vectors.data() + firstMB, SADs.data() + firstMB,
+                    mses.data(), MB_modes.data(), &count_I, &count_P, &bits);
 
   EXPECT_GE(result, 0) << "Result (MSE) should be non-negative";
 
@@ -269,7 +283,8 @@ TEST_F(MotionSearchTest, MotionSearch_KnownMotion) {
   for (int y = 0; y < num_blocks_y && !found_motion; y++) {
     for (int x = 0; x < num_blocks_x; x++) {
       int idx = y * stride_MB + x;
-      if (motion_vectors[idx].x != 0 || motion_vectors[idx].y != 0) {
+      if (motion_vectors[firstMB + idx].x != 0 ||
+          motion_vectors[firstMB + idx].y != 0) {
         found_motion = true;
         break;
       }
@@ -299,10 +314,10 @@ TEST_F(MotionSearchTest, BidirMotionSearch_Basic) {
   extend_frame(ref1, stride, dim, pad_x, pad_y);
   extend_frame(ref2, stride, dim, pad_x, pad_y);
 
-  int num_blocks_x = width / block_width;
-  int num_blocks_y = height / block_height;
   int stride_MB = width / MB_WIDTH + 2;
-  int array_size = num_blocks_y * stride_MB;
+  int padded_height_MB = (height + MB_WIDTH - 1) / MB_WIDTH + 2;
+  int array_size = stride_MB * padded_height_MB;
+  int firstMB = stride_MB + 1;
 
   std::vector<MV> P_motion_vectors(array_size);
   std::vector<MV> motion_vectors1(array_size);
@@ -316,14 +331,21 @@ TEST_F(MotionSearchTest, BidirMotionSearch_Basic) {
   int count_B = 0;
   int bits = 0;
 
+  // Initialize padding with border values
+  for (int j = 0; j < stride_MB; j++) {
+    SADs1[j] = 65535;
+    SADs2[j] = 65535;
+  }
+
   short td1 = 1;
   short td2 = 1;
 
   int result = bidir_motion_search(
       current, ref1, ref2, stride, dim, block_width, block_height,
-      P_motion_vectors.data(), motion_vectors1.data(), motion_vectors2.data(),
-      SADs1.data(), SADs2.data(), mses.data(), MB_modes.data(), td1, td2,
-      &count_I, &count_P, &count_B, &bits);
+      P_motion_vectors.data() + firstMB, motion_vectors1.data() + firstMB,
+      motion_vectors2.data() + firstMB, SADs1.data() + firstMB,
+      SADs2.data() + firstMB, mses.data(), MB_modes.data(), td1, td2, &count_I,
+      &count_P, &count_B, &bits);
 
   EXPECT_GE(result, 0) << "Result (MSE) should be non-negative";
 
@@ -352,7 +374,9 @@ TEST_F(MotionSearchTest, MotionSearch_MultipleBlockSizes) {
   int num_blocks_x = width / block_width;
   int num_blocks_y = height / block_height;
   int stride_MB = width / MB_WIDTH + 2;
-  int array_size = num_blocks_y * stride_MB;
+  int padded_height_MB = (height + MB_WIDTH - 1) / MB_WIDTH + 2;
+  int array_size = stride_MB * padded_height_MB;
+  int firstMB = stride_MB + 1;
 
   EXPECT_GT(num_blocks_x * num_blocks_y, 0) << "Should have at least one block";
   EXPECT_EQ(0, width % block_width)
@@ -368,10 +392,15 @@ TEST_F(MotionSearchTest, MotionSearch_MultipleBlockSizes) {
   int count_P = 0;
   int bits = 0;
 
+  // Initialize padding with border values
+  for (int j = 0; j < stride_MB; j++) {
+    SADs[j] = 65535;
+  }
+
   int result =
       motion_search(center, center, stride, dim, block_width, block_height,
-                    motion_vectors.data(), SADs.data(), mses.data(),
-                    MB_modes.data(), &count_I, &count_P, &bits);
+                    motion_vectors.data() + firstMB, SADs.data() + firstMB,
+                    mses.data(), MB_modes.data(), &count_I, &count_P, &bits);
 
   EXPECT_GE(result, 0) << "Result (MSE) should be non-negative";
 }
@@ -392,7 +421,6 @@ TEST_F(MotionSearchTest, SpatialSearch_NonSquareFrame) {
   DIM dim = {width, height};
   extend_frame(center, stride, dim, pad_x, pad_y);
 
-  int num_blocks_x = width / block_width;
   int num_blocks_y = height / block_height;
   int stride_MB = width / MB_WIDTH + 2;
   int array_size = num_blocks_y * stride_MB;
