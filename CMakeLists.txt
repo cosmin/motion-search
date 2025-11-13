@@ -10,19 +10,16 @@ include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 
-# Highway SIMD library
-option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations instead of SSE2" ON)
-if(USE_HIGHWAY_SIMD)
-  include(FetchContent)
-  FetchContent_Declare(
-    highway
-    GIT_REPOSITORY https://github.com/google/highway.git
-    GIT_TAG 1.2.0
-  )
-  set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
-  set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(highway)
-endif()
+# Highway SIMD library (required for all SIMD operations)
+include(FetchContent)
+FetchContent_Declare(
+  highway
+  GIT_REPOSITORY https://github.com/google/highway.git
+  GIT_TAG 1.2.0
+)
+set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(highway)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -32,7 +29,6 @@ add_compile_options(-fms-extensions)
 
 # Create library : libmotion_search_lib
 add_library(motion_search_lib
-    "motion_search/cpu.cpp"
     "motion_search/frame.cpp"
     "motion_search/memory.cpp"
     "motion_search/moments.disp.cpp"
@@ -49,23 +45,12 @@ add_library(motion_search_lib
 target_clangformat_setup(motion_search_lib)
 
 #
-# Create library : libmotion_search_lib_sse2 or libmotion_search_lib_highway
+# Create library : libmotion_search_lib_simd (using Highway)
 #
 
-if(USE_HIGHWAY_SIMD)
-  # Use Highway SIMD implementation
-  set(SOURCES_SIMD "motion_search/asm/moments.highway.cpp")
-  add_library(motion_search_lib_simd ${SOURCES_SIMD})
-  target_link_libraries(motion_search_lib_simd PUBLIC hwy)
-  target_compile_definitions(motion_search_lib_simd PUBLIC USE_HIGHWAY_SIMD)
-  target_clangformat_setup(motion_search_lib_simd)
-else()
-  # Use SSE2 implementation
-  set(SOURCES_SSE2 "motion_search/asm/moments.x86.sse2.c")
-  set_source_files_properties(${SOURCES_SSE2} COMPILE_FLAGS "-msse2")
-  add_library(motion_search_lib_simd ${SOURCES_SSE2})
-  target_clangformat_setup(motion_search_lib_simd)
-endif()
+add_library(motion_search_lib_simd "motion_search/asm/moments.highway.cpp")
+target_link_libraries(motion_search_lib_simd PUBLIC hwy)
+target_clangformat_setup(motion_search_lib_simd)
 
 #
 # create binary
@@ -91,9 +76,6 @@ target_include_directories(motion_search_lib_simd PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
 )
-if(USE_HIGHWAY_SIMD)
-  target_compile_definitions(motion_search_lib PUBLIC USE_HIGHWAY_SIMD)
-endif()
 target_include_directories(motion_search PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
