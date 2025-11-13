@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Build and Test (${{ matrix.os }}, ${{ matrix.build_type }}, ${{ matrix.simd_mode }})
+    name: Build and Test (${{ matrix.os }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -16,11 +16,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-13, macos-latest]
         build_type: [Debug, Release]
-        simd_mode: [highway, sse2]
-        exclude:
-          # Skip SSE2-only mode on Apple Silicon (not supported)
-          - os: macos-latest
-            simd_mode: sse2
 
     steps:
     - name: Checkout code
@@ -37,19 +32,11 @@ jobs:
       run: |
         brew install cmake clang-format ffmpeg
 
-    - name: Configure CMake (Highway SIMD)
-      if: matrix.simd_mode == 'highway'
+    - name: Configure CMake
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DUSE_HIGHWAY_SIMD=ON
-
-    - name: Configure CMake (SSE2 Legacy)
-      if: matrix.simd_mode == 'sse2'
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DUSE_HIGHWAY_SIMD=OFF
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
     - name: Build
       run: |
@@ -90,7 +77,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}-${{ matrix.simd_mode }}
+        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
         path: |
           build/test-results-*.xml
           build/Testing/*/Test.xml
@@ -100,5 +87,5 @@ jobs:
       uses: mikepenz/action-junit-report@v4
       with:
         report_paths: 'build/test-results-*.xml'
-        check_name: Test Results (${{ matrix.os }}, ${{ matrix.build_type }}, ${{ matrix.simd_mode }})
+        check_name: Test Results (${{ matrix.os }}, ${{ matrix.build_type }})
         fail_on_failure: false

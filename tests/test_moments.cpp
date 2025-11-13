@@ -1,7 +1,7 @@
 /*
  * Tests for SIMD primitive functions (moments)
- * Validates that SSE2 optimized versions produce identical results to reference
- * C implementations
+ * Validates that Highway SIMD implementations produce identical results to
+ * reference C implementations
  */
 
 #include <cstring>

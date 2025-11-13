@@ -17,7 +17,9 @@ Contents:
 ## Requirements
 
 - [CMake](https://cmake.org/) (>= 3.1)
+- C++11 compatible compiler
 - `clang-format`
+- [Google Highway](https://github.com/google/highway) (automatically fetched by CMake)
 
 Under Linux, to install CMake, install the `cmake` and `clang-format` packages from your distribution's package manager.
 
@@ -39,6 +41,8 @@ make -j $(nproc)
 ```
 
 The `motion-search` executable will be created in the `build/bin` folder.
+
+**Note**: CMake will automatically download and build [Google Highway](https://github.com/google/highway) v1.2.0 for portable SIMD operations. Highway provides cross-platform vectorization that works on x86 (SSE2/AVX2/AVX-512), ARM (NEON), and other architectures.
 
 ## Testing
 
@@ -104,7 +108,7 @@ The test suite includes:
 
 1. **test_moments** (21 tests) - SIMD primitive validation
    - Tests SAD, MSE, variance, and bidirectional MSE functions
-   - Validates SSE2 optimizations match C reference implementations
+   - Validates Highway SIMD optimizations match C reference implementations
    - Includes stress tests with 100 iterations
 
 2. **test_frame** (6 tests) - Frame operation validation

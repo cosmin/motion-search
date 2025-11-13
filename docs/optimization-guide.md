@@ -1,106 +1,263 @@
-# SIMD Optimization Guide
+# SIMD Optimization Guide (Highway-based)
 
 ## Introduction
 
-An optimized function typically consists of the following parts:
+This project uses [Google Highway](https://github.com/google/highway) for portable, cross-platform SIMD optimizations. Highway provides a single API that compiles to optimal code for multiple instruction sets (SSE2, AVX2, AVX-512, NEON, etc.) and automatically dispatches to the best available implementation at runtime.
 
-* The main function to call. Please, avoid calling optimized function or
-  function pointers directly. It makes code hard to support. Ex. `calc_algo`
+## Architecture Overview
 
-* C version. Usually this function is used as a reference for testing
-  optimized versions. Using extern "C" declaration helps inter-compiler
-  interactions. Ex. `calc_algo_c`
+An optimized function in this codebase typically consists of:
 
-* SIMD optimized version(s). Written with intrinsics or bare asm.
-  Using extern "C" declaration helps inter-compiler interactions. 
-  Ex. `calc_algo_sse2`
+1. **Main function** - The public API that applications call (e.g., `fastSAD16`)
+2. **C reference implementation** - Portable C code used for testing and as a fallback (e.g., `fastSAD16_c`)
+3. **Highway SIMD implementation** - Multi-target implementation using Highway's portable API (e.g., `fastSAD16_hwy`)
+4. **Dispatcher wrapper** - Simple wrapper that calls the Highway implementation (in `moments.disp.cpp`)
 
-* A function for dynamic CPU dispatching CPU and optimization selection.
-  A pretty simple function that checks CPU capabilities and selects the most 
-  suitable optimized function. The function is called once at the first call
-  of A. function.
-  Ex. `calc_algo_disp`
+### Example Function Flow
 
-* A function-pointer to most suitable optimization. It's set to the dispatcher
-  function at program initialization and later is set once to the most
-  suitable optimization.
+```
+Application calls: fastSAD16()
+         ↓
+Dispatcher (moments.disp.cpp): fastSAD16() → calls fastSAD16_hwy()
+         ↓
+Highway multi-target (moments.highway.cpp): fastSAD16_hwy()
+         ↓
+Highway runtime dispatch selects best target:
+    → x86: SSE2, AVX2, or AVX-512
+    → ARM: NEON
+    → Others: Portable SIMD
+```
 
-* Function for getting CPU capabilities.
+## How to Write SIMD Optimizations with Highway
 
-Most of the parts above are implemented with macros and there is no need to implement
-them for every function.
+### Step 1: Declare Function Signatures
 
-## How to write optimization(s)
+In the header file (e.g., `moments.h`), declare your functions:
 
-* Declare a main function to call. It's recommended to implement 2 defines for
-  function's paramters to avoid code duplications:
-  ```C
-  #define CALC_ALGO_FORMAL_ARGS void *p, const ptrdiff_t stride
-  #define CALC_ALGO_ACTUAL_ARGS p, stride
-  int calc_algo(CALC_ALGO_FORMAL_ARGS);
-  ```
-    
-* Declare the C version function.
-  ```C
-  int calc_algo_c(CALC_ALGO_FORMAL_ARGS);
-  ```
+```c
+// Define parameter macros for consistency
+#define FAST_SAD_FORMAL_ARGS                                                   \
+  const uint8_t *current, const uint8_t *reference, const ptrdiff_t stride,    \
+      int block_width, int block_height, int min_SAD
 
-* Declare available optimizations. Hide declaration under a platform define.
-  The function suffix should match a cpu suffix from motion_search/inc/cpu.h
-  file.
+#define FAST_SAD_ACTUAL_ARGS                                                   \
+  current, reference, stride, block_width, block_height, min_SAD
 
-  ```C
-  #if defined(_X86) || defined(_X64)
-  int calc_algo_sse2(CALC_ALGO_FORMAL_ARGS);
-  #elif defined(_ARM) || defined(_ARM64)
-  int calc_algo_neon(CALC_ALGO_FORMAL_ARGS);
-  #endif
-  ```
+// Public API
+int fastSAD16(FAST_SAD_FORMAL_ARGS);
 
-    Implement optimized functions in a file that has the platform and the suffix
-    in the file name. Some compilers require different compilers flags for
-    different optimizations. Having platform/suffix in the file name makes
-    finding and grouping files with optimizations easier.
-    Hide optimized functions under a platform define. Add a corresponding compiling
-    option to CMakeLists.txt file.
-    ```
-    asm/calc_algo.x86.sse2.asm 
-    asm/calc_algo.arm.neon.asm
-    ```
+// C reference implementation
+int fastSAD16_c(FAST_SAD_FORMAL_ARGS);
 
-* Implement a dispatcher, use exisinting defines from motion_search/inc/cpu_disp.h
-  file.
+// Highway SIMD implementation
+int fastSAD16_hwy(FAST_SAD_FORMAL_ARGS);
+```
 
-  ```C
-  #if defined(_X86) || defined(_X64)
-  IMPL_PROC_1(int, calc_algo,  (CALC_ALGO_FORMAL_ARGS), (CALC_ALGO_ACTUAL_ARGS), sse2)
-  #elif defined(_ARM) || defined(_ARM64)
-  IMPL_PROC_1(int, calc_algo,  (CALC_ALGO_FORMAL_ARGS), (CALC_ALGO_ACTUAL_ARGS), neon)
-  #else
-  IMPL_PROC_0(int, calc_algo,  (CALC_ALGO_FORMAL_ARGS), (CALC_ALGO_ACTUAL_ARGS))
-  #endif
-  ```
+### Step 2: Implement C Reference Version
 
-  There is no limitation on optimizations. List all available optimizations in
-  order from lower to higher. The CPU dispatching mechanism picks up the most
-  suitable one. `IMPL_PROC_?` number means the number of available optimizations.
-  ```C
-  IMPL_PROC_5(int, calc_algo,  (CALC_ALGO_FORMAL_ARGS), (CALC_ALGO_ACTUAL_ARGS), sse2, ssse3, sse41, avx2, avx512bwdq)
-  ```
-  If a required `IMPL_PROC_?` macro is missing, just implement one more by analogue.
+Write a portable C implementation for testing and validation:
 
-## Appendix
+```c
+int fastSAD16_c(const uint8_t *current, const uint8_t *reference,
+                const ptrdiff_t stride, int block_width, int block_height,
+                int min_SAD) {
+  int sad = 0;
+  for (int y = 0; y < block_height; y++) {
+    for (int x = 0; x < block_width; x++) {
+      sad += abs(current[y * stride + x] - reference[y * stride + x]);
+    }
+  }
+  return sad;
+}
+```
 
-* Available platform defines:
-  * `_X86` - x86 32-bit platform
-  * `_X64` - x86-64 64-bit platform
-  * `_ARM` - ARM 32-bit platform (v7a)
-  * `_ARM64` - ARM 64-bit platform (v8a)
+### Step 3: Implement Highway Multi-Target Version
 
-* Source files platform suffixes:
-  * `.x86.` - both x86 and x86-64 platforms
-  * `.x64.` - x86-64 platform
-  * `.arm.` - both 32- and 64-bit ARM platforms
-  * `.arm64.` - 64-bit ARM platform
+Create a Highway implementation file (e.g., `motion_search/asm/moments.highway.cpp`):
 
-Yes, there is a little inconsistency between platform defines and platform suffixes.
+```cpp
+// Highway multi-target setup (include once at top of file)
+#undef HWY_TARGET_INCLUDE
+#define HWY_TARGET_INCLUDE "motion_search/asm/moments.highway.cpp"
+#include <hwy/foreach_target.h>
+#include <hwy/highway.h>
+
+HWY_BEFORE_NAMESPACE();
+namespace motion_search {
+namespace HWY_NAMESPACE {
+
+namespace hn = hwy::HWY_NAMESPACE;
+
+// Implement your SIMD function here
+// This code will be compiled multiple times for different targets
+int fastSAD16_hwy_impl(const uint8_t *current, const uint8_t *reference,
+                       const ptrdiff_t stride, int block_width,
+                       int block_height, int min_SAD) {
+  const hn::FixedTag<uint8_t, 16> d;
+
+  int total_sad = 0;
+
+  for (int y = 0; y < block_height; y++) {
+    const uint8_t *cur_row = current + y * stride;
+    const uint8_t *ref_row = reference + y * stride;
+
+    for (int x = 0; x < block_width; x += 16) {
+      // Load 16 bytes
+      auto cur_vec = hn::LoadU(d, cur_row + x);
+      auto ref_vec = hn::LoadU(d, ref_row + x);
+
+      // Compute absolute differences and sum
+      auto sad_vec = hn::AbsDiff(cur_vec, ref_vec);
+      total_sad += hn::ReduceSum(d, sad_vec);
+    }
+  }
+
+  return total_sad;
+}
+
+}  // namespace HWY_NAMESPACE
+}  // namespace motion_search
+HWY_AFTER_NAMESPACE();
+
+// Export function for dynamic dispatch (include once per file)
+#if HWY_ONCE
+namespace motion_search {
+
+HWY_EXPORT(fastSAD16_hwy_impl);
+
+// Wrapper that dispatches to the best available target
+extern "C" int fastSAD16_hwy(const uint8_t *current, const uint8_t *reference,
+                             const ptrdiff_t stride, int block_width,
+                             int block_height, int min_SAD) {
+  return HWY_DYNAMIC_DISPATCH(fastSAD16_hwy_impl)(
+      current, reference, stride, block_width, block_height, min_SAD);
+}
+
+}  // namespace motion_search
+#endif  // HWY_ONCE
+```
+
+### Step 4: Create Dispatcher Wrapper
+
+In `moments.disp.cpp`, create a simple wrapper:
+
+```cpp
+extern "C" {
+
+int fastSAD16(const uint8_t *current, const uint8_t *reference,
+              const ptrdiff_t stride, int block_width, int block_height,
+              int min_SAD) {
+  return fastSAD16_hwy(current, reference, stride, block_width, block_height,
+                       min_SAD);
+}
+
+}  // extern "C"
+```
+
+## Common Highway Patterns
+
+### Loading Data
+
+```cpp
+const hn::FixedTag<uint8_t, 16> d;  // 16-byte vectors
+auto vec = hn::LoadU(d, ptr);       // Unaligned load
+auto vec = hn::Load(d, ptr);        // Aligned load (faster if guaranteed aligned)
+```
+
+### Arithmetic Operations
+
+```cpp
+auto sum = hn::Add(a, b);           // Vector addition
+auto diff = hn::Sub(a, b);          // Vector subtraction
+auto product = hn::Mul(a, b);       // Vector multiplication
+auto abs_diff = hn::AbsDiff(a, b);  // |a - b|
+auto avg = hn::AverageRound(a, b);  // (a + b + 1) / 2
+```
+
+### Type Conversions
+
+```cpp
+// Widen lower/upper halves of uint8_t to uint16_t
+const hn::FixedTag<uint8_t, 16> d8;
+const hn::FixedTag<uint16_t, 8> d16;
+
+auto vec8 = hn::LoadU(d8, ptr);
+auto lower16 = hn::PromoteLowerTo(d16, vec8);
+auto upper16 = hn::PromoteUpperTo(d16, vec8);
+```
+
+### Reductions
+
+```cpp
+auto sum = hn::ReduceSum(d, vec);   // Horizontal sum of all elements
+```
+
+### Shifts
+
+```cpp
+auto shifted = hn::ShiftRight<4>(vec);  // Shift right by 4 bits
+```
+
+## Best Practices
+
+1. **Use Fixed-Size Vectors**: For algorithms that process specific block sizes (8x8, 16x16), use `FixedTag<T, N>` for predictable performance.
+
+2. **Handle Remainders**: If your data size isn't a multiple of the vector size, handle the remainder with scalar code or masked operations.
+
+3. **Minimize Horizontal Operations**: Operations like `ReduceSum` are slower than vertical operations. Accumulate in vectors when possible.
+
+4. **Test Against Reference**: Always validate your Highway implementation against the C reference using the test suite.
+
+5. **Profile**: Highway automatically picks the best target, but you should still profile to ensure good performance.
+
+## Highway API Reference
+
+For complete documentation, see:
+- [Highway Quick Reference](https://github.com/google/highway/blob/master/g3doc/quick_reference.md)
+- [Highway API Documentation](https://github.com/google/highway/blob/master/g3doc/README.md)
+- [Porting Guide (from SSE2/NEON)](https://github.com/google/highway/blob/master/g3doc/porting.md)
+
+## Supported Targets
+
+Highway automatically compiles and dispatches to these targets:
+
+### x86/x86-64
+- SSE2 (baseline, always available on x86-64)
+- SSSE3
+- SSE4.1
+- AVX2
+- AVX-512
+
+### ARM
+- NEON (ARMv7-A and ARMv8-A)
+- SVE (ARMv8-A with SVE)
+
+### Other Architectures
+- WASM SIMD
+- RISC-V Vector Extension
+- PowerPC VSX
+- Portable fallback (EMU128 for any platform)
+
+## Example: Existing Implementations
+
+See these files for complete examples:
+- `motion_search/asm/moments.highway.cpp` - All SIMD primitive implementations
+- `motion_search/moments.disp.cpp` - Dispatcher wrappers
+- `motion_search/moments.h` - Function declarations
+- `tests/test_moments.cpp` - Test suite validating implementations
+
+## Migration from SSE2
+
+If you have existing SSE2 code, refer to the [Highway Porting Guide](https://github.com/google/highway/blob/master/g3doc/porting.md) for common intrinsic mappings. Key differences:
+
+| SSE2 Intrinsic | Highway Equivalent |
+|----------------|-------------------|
+| `_mm_load_si128()` | `Load(d, ptr)` |
+| `_mm_loadu_si128()` | `LoadU(d, ptr)` |
+| `_mm_add_epi8()` | `Add(a, b)` |
+| `_mm_sub_epi8()` | `Sub(a, b)` |
+| `_mm_sad_epu8()` | `AbsDiff()` + `ReduceSum()` |
+| `_mm_mullo_epi16()` | `Mul(a, b)` |
+| `_mm_setzero_si128()` | `Zero(d)` |
+
+Highway handles type safety automatically, making many explicit type casts unnecessary.
