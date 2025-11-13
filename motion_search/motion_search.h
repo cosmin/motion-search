@@ -7,11 +7,11 @@
 
 #pragma once
 
+#include "common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "common.h"
 
 int spatial_search(unsigned char *current, unsigned char *reference, int stride,
                    const DIM dim, int block_width, int block_height,

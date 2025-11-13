@@ -33,8 +33,8 @@ add_compile_options(-fms-extensions)
 
 # Create library : libmotion_search_lib
 add_library(motion_search_lib
-    "motion_search/cpu.c"
-    "motion_search/frame.c"
+    "motion_search/cpu.cpp"
+    "motion_search/frame.cpp"
     "motion_search/memory.cpp"
     "motion_search/moments.disp.cpp"
     "motion_search/BaseVideoSequenceReader.cpp"
@@ -44,8 +44,8 @@ add_library(motion_search_lib
     "motion_search/EOFException.cpp"
     "motion_search/MotionVectorField.cpp"
     "motion_search/YUVFrame.cpp"
-    "motion_search/moments.c"
-    "motion_search/motion_search.c"
+    "motion_search/moments.cpp"
+    "motion_search/motion_search.cpp"
 )
 target_clangformat_setup(motion_search_lib)
 
