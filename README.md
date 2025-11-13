@@ -1,5 +1,8 @@
 # motion-search
 
+[![Tests](https://github.com/cosmin/motion-search/actions/workflows/tests.yml/badge.svg)](https://github.com/cosmin/motion-search/actions/workflows/tests.yml)
+[![Format Check](https://github.com/cosmin/motion-search/actions/workflows/format-check.yml/badge.svg)](https://github.com/cosmin/motion-search/actions/workflows/format-check.yml)
+
 Perform motion search and compute motion vectors and residual information in order to extract features for predicting video compressibility.
 
 Contents:

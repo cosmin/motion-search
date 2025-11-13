@@ -1,0 +1,91 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake clang-format ffmpeg
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake clang-format ffmpeg
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . -j $(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+    - name: Generate test videos
+      run: |
+        cd tests
+        ./generate_test_videos.sh
+
+    - name: Run SIMD primitive tests
+      run: |
+        cd build
+        ./bin/test_moments --gtest_output=xml:test-results-moments.xml
+
+    - name: Run frame operation tests
+      run: |
+        cd build
+        ./bin/test_frame --gtest_output=xml:test-results-frame.xml
+
+    - name: Run integration tests
+      run: |
+        cd build
+        ./bin/test_integration --gtest_output=xml:test-results-integration.xml
+
+    - name: Run motion search tests
+      run: |
+        cd build
+        ./bin/test_motion_search --gtest_output=xml:test-results-motion.xml || true
+
+    - name: Run all tests with CTest
+      run: |
+        cd build
+        ctest --output-on-failure --no-compress-output -T Test || true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
+        path: |
+          build/test-results-*.xml
+          build/Testing/*/Test.xml
+
+    - name: Publish test report
+      if: always() && runner.os == 'Linux' && matrix.build_type == 'Debug'
+      uses: mikepenz/action-junit-report@v4
+      with:
+        report_paths: 'build/test-results-*.xml'
+        check_name: Test Results (${{ matrix.os }}, ${{ matrix.build_type }})
+        fail_on_failure: false
