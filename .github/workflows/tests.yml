@@ -14,9 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-13, macos-latest]
         build_type: [Debug, Release]
         simd_mode: [highway, sse2]
+        exclude:
+          # Skip SSE2-only mode on Apple Silicon (not supported)
+          - os: macos-latest
+            simd_mode: sse2
 
     steps:
     - name: Checkout code

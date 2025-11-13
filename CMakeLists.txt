@@ -27,7 +27,6 @@ endif()
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_OSX_ARCHITECTURES "x86_64")
 
 add_compile_options(-fms-extensions)
 
@@ -100,8 +99,14 @@ target_include_directories(motion_search PRIVATE
   ${CMAKE_SOURCE_DIR}/motion_search
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic -mxsave")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic -mxsave")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions -fpermissive -Wall -Wpedantic")
+
+# Add -mxsave only on x86/x64 platforms where it's supported
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mxsave")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mxsave")
+endif()
 
 configure_file(motion_search.pc.in motion_search.pc @ONLY)
 
