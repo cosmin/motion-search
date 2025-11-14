@@ -10,16 +10,24 @@ include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 
-# Highway SIMD library (required for all SIMD operations)
-include(FetchContent)
-FetchContent_Declare(
-  highway
-  GIT_REPOSITORY https://github.com/google/highway.git
-  GIT_TAG 1.2.0
-)
-set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
-set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(highway)
+# SIMD support option
+option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations (recommended). If OFF, uses pure C implementations." ON)
+
+# Highway SIMD library (optional, enabled by default)
+if(USE_HIGHWAY_SIMD)
+  message(STATUS "Building with Highway SIMD support (USE_HIGHWAY_SIMD=ON)")
+  include(FetchContent)
+  FetchContent_Declare(
+    highway
+    GIT_REPOSITORY https://github.com/google/highway.git
+    GIT_TAG 1.2.0
+  )
+  set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+  set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(highway)
+else()
+  message(STATUS "Building with pure C implementations (USE_HIGHWAY_SIMD=OFF)")
+endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -45,12 +53,16 @@ add_library(motion_search_lib
 target_clangformat_setup(motion_search_lib)
 
 #
-# Create library : libmotion_search_lib_simd (using Highway)
+# Create library : libmotion_search_lib_simd (conditionally uses Highway or pure C)
 #
 
-add_library(motion_search_lib_simd "motion_search/asm/moments.highway.cpp")
-target_link_libraries(motion_search_lib_simd PUBLIC hwy)
-target_clangformat_setup(motion_search_lib_simd)
+if(USE_HIGHWAY_SIMD)
+  add_library(motion_search_lib_simd "motion_search/asm/moments.highway.cpp")
+  target_link_libraries(motion_search_lib_simd PUBLIC hwy)
+  target_clangformat_setup(motion_search_lib_simd)
+  target_compile_definitions(motion_search_lib PRIVATE USE_HIGHWAY_SIMD=1)
+  target_compile_definitions(motion_search_lib_simd PRIVATE USE_HIGHWAY_SIMD=1)
+endif()
 
 #
 # create binary
@@ -62,9 +74,14 @@ add_executable(motion_search
 target_clangformat_setup(motion_search)
 
 
-target_link_libraries (motion_search LINK_PUBLIC
-    motion_search_lib
-    motion_search_lib_simd)
+if(USE_HIGHWAY_SIMD)
+  target_link_libraries (motion_search LINK_PUBLIC
+      motion_search_lib
+      motion_search_lib_simd)
+else()
+  target_link_libraries (motion_search LINK_PUBLIC
+      motion_search_lib)
+endif()
 
 set_target_properties(motion_search_lib PROPERTIES PUBLIC_HEADER motion_search/motion_search.h)
 
@@ -72,10 +89,12 @@ target_include_directories(motion_search_lib PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
 )
-target_include_directories(motion_search_lib_simd PRIVATE
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/motion_search
-)
+if(USE_HIGHWAY_SIMD)
+  target_include_directories(motion_search_lib_simd PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/motion_search
+  )
+endif()
 target_include_directories(motion_search PRIVATE
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/motion_search
@@ -107,9 +126,11 @@ ADD_CUSTOM_TARGET(release
 install(TARGETS motion_search_lib
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(TARGETS motion_search_lib_simd
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(USE_HIGHWAY_SIMD)
+  install(TARGETS motion_search_lib_simd
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 install(FILES ${CMAKE_BINARY_DIR}/motion_search.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 

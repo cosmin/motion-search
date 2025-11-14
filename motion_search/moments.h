@@ -78,32 +78,6 @@ int fast_bidir_mse8_c(FAST_BIDIR_MSE_FORMAL_ARGS);
 int fast_bidir_mse4_c(FAST_BIDIR_MSE_FORMAL_ARGS);
 
 /*
-    declare optimized functions
-*/
-
-#if defined(_X86) || defined(_X64)
-
-int fastSAD16_sse2(FAST_SAD_FORMAL_ARGS);
-int fastSAD8_sse2(FAST_SAD_FORMAL_ARGS);
-int fastSAD4_sse2(FAST_SAD_FORMAL_ARGS);
-
-int fast_variance16_sse2(FAST_VARIANCE_FORMAL_ARGS);
-int fast_variance8_sse2(FAST_VARIANCE_FORMAL_ARGS);
-int fast_variance4_sse2(FAST_VARIANCE_FORMAL_ARGS);
-
-int fast_calc_mse16_sse2(FAST_MSE_FORMAL_ARGS);
-int fast_calc_mse8_sse2(FAST_MSE_FORMAL_ARGS);
-int fast_calc_mse4_sse2(FAST_MSE_FORMAL_ARGS);
-
-int fast_bidir_mse16_sse2(FAST_BIDIR_MSE_FORMAL_ARGS);
-int fast_bidir_mse8_sse2(FAST_BIDIR_MSE_FORMAL_ARGS);
-int fast_bidir_mse4_sse2(FAST_BIDIR_MSE_FORMAL_ARGS);
-
-#elif defined(_ARM) || defined(_ARM64)
-
-#endif /* defined(_X86) || defined(_X64) */
-
-/*
     declare Highway SIMD functions
 */
 
