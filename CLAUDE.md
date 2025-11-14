@@ -40,8 +40,7 @@ motion-search/
 │   ├── moments.{h,cpp,disp.cpp}       # SIMD primitive declarations
 │   ├── asm/
 │   │   └── moments.highway.cpp        # Highway SIMD implementations
-│   ├── common.h            # Constants, configurations
-│   └── fb_command_line_parser.h       # CLI parser (lightweight)
+│   └── common.h            # Constants, configurations
 ├── tests/                  # Google Test suite
 │   ├── integration/        # End-to-end tests
 │   ├── unit/              # Component tests
@@ -76,6 +75,7 @@ motion-search/
 
 ### Dependencies (Auto-Fetched)
 - **Google Highway** 1.2.0 - SIMD library
+- **Google Abseil** 20240722.0 - Command-line parsing and utilities
 - **Google Test** 1.14.0 - Testing framework
 
 ### Build Instructions
@@ -95,7 +95,7 @@ cmake ..
 cmake -DUSE_HIGHWAY_SIMD=ON -DBUILD_TESTING=ON ..
 
 # Build
-make -j$(nproc)
+make -j8
 
 # Run tests
 make test
@@ -203,30 +203,43 @@ TEST(MyFeatureIntegrationTest, EndToEnd) {
 
 ### Task 1: Adding a New Command-Line Flag
 
-**Current System:** `fb_command_line_parser.h` (custom, simple)
-**Future System:** Abseil Flags (see FUTURE_IMPROVEMENTS_PLAN.md Phase 1)
+**Current System:** Google Abseil Flags (Phase 1 completed)
+**Legacy System:** `fb_command_line_parser.h` (removed)
 
-**Current Approach:**
+**How to Add a New Flag:**
 ```cpp
-// In main.cpp
-int main(int argc, char** argv) {
-  fb_command_line_parser::option_map options;
+// In main.cpp (near top of file with other ABSL_FLAG declarations)
 
-  // Add flag definition
-  options["my_flag"] = { "42", "Description of my flag" };
+// Define the flag
+ABSL_FLAG(int32_t, my_flag, 42, "Description of my flag");
 
-  // Parse
-  fb_command_line_parser::parse_cmd(argc, argv, options);
+// In ParseAndValidateFlags() function, retrieve the flag value:
+int my_value = absl::GetFlag(FLAGS_my_flag);
 
-  // Use value
-  int my_value = atoi(options["my_flag"].value.c_str());
+// Or validate it:
+if (my_value < 0) {
+  std::cerr << "Error: my_flag must be non-negative\n";
+  exit(1);
 }
 ```
 
-**Testing:**
+**Usage Examples:**
 ```bash
-./motion_search -my_flag=100 input.y4m
+# New-style (recommended)
+./motion_search --input=video.y4m --output=out.csv --my_flag=100
+
+# Legacy style still supported for backward compatibility
+./motion_search video.y4m out.csv -my_flag=100
+
+# Get help
+./motion_search --help
 ```
+
+**Key Features:**
+- Type-safe flags (int32_t, std::string, bool, etc.)
+- Automatic help generation via `--help`
+- Built-in validation
+- Backward compatibility with legacy `-flag=value` syntax
 
 ### Task 2: Adding a New SIMD Primitive
 

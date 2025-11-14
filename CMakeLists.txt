@@ -13,10 +13,12 @@ include(ClangFormat)
 # SIMD support option
 option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations (recommended). If OFF, uses pure C implementations." ON)
 
+# Abseil library for command-line parsing
+include(FetchContent)
+
 # Highway SIMD library (optional, enabled by default)
 if(USE_HIGHWAY_SIMD)
   message(STATUS "Building with Highway SIMD support (USE_HIGHWAY_SIMD=ON)")
-  include(FetchContent)
   FetchContent_Declare(
     highway
     GIT_REPOSITORY https://github.com/google/highway.git
@@ -28,6 +30,16 @@ if(USE_HIGHWAY_SIMD)
 else()
   message(STATUS "Building with pure C implementations (USE_HIGHWAY_SIMD=OFF)")
 endif()
+
+# Abseil for command-line parsing
+FetchContent_Declare(
+  abseil
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG 20240722.0  # LTS branch
+)
+set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
+set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(abseil)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -77,10 +89,16 @@ target_clangformat_setup(motion_search)
 if(USE_HIGHWAY_SIMD)
   target_link_libraries (motion_search LINK_PUBLIC
       motion_search_lib
-      motion_search_lib_simd)
+      motion_search_lib_simd
+      absl::flags
+      absl::flags_parse
+      absl::flags_usage)
 else()
   target_link_libraries (motion_search LINK_PUBLIC
-      motion_search_lib)
+      motion_search_lib
+      absl::flags
+      absl::flags_parse
+      absl::flags_usage)
 endif()
 
 set_target_properties(motion_search_lib PROPERTIES PUBLIC_HEADER motion_search/motion_search.h)
