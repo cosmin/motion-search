@@ -91,6 +91,7 @@ set(MOTION_SEARCH_LIB_SOURCES
     "motion_search/Y4MSequenceReader.cpp"
     "motion_search/YUVSequenceReader.cpp"
     "motion_search/ComplexityAnalyzer.cpp"
+    "motion_search/ComplexityNormalization.cpp"
     "motion_search/EOFException.cpp"
     "motion_search/MotionVectorField.cpp"
     "motion_search/YUVFrame.cpp"
