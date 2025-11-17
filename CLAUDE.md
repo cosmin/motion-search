@@ -419,13 +419,24 @@ std::cerr << "SIMD target: " << HWY_TARGET << "\n";
 ### Formatting
 The project uses **clang-format** for consistent style.
 
+**⚠️ IMPORTANT: Always run clang-format before committing code!**
+
 ```bash
 # Format single file
 clang-format -i motion_search/main.cpp
 
 # Format all source files
 find motion_search tests -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+# Format only modified files before commit (recommended)
+git diff --name-only --diff-filter=ACMR | grep -E '\.(cpp|h)$' | xargs clang-format -i
 ```
+
+**Best Practice Workflow:**
+1. Make your code changes
+2. Run clang-format on modified files
+3. Build and test
+4. Commit
 
 **Style highlights:**
 - Indentation: 2 spaces (no tabs)
@@ -535,8 +546,9 @@ git push
 1. **Recent refactor:** SSE2 → Highway (2025). Don't suggest SSE2 intrinsics.
 2. **Testing is critical:** All new code needs tests (unit + integration).
 3. **Performance matters:** This is a video analysis tool, optimize hot paths.
-4. **Dependencies are minimal:** Only Highway and GTest. New deps need justification.
+4. **Dependencies are minimal:** Only Highway, Abseil, and GTest. New deps need justification.
 5. **Cross-platform:** Code should work on Linux, macOS, Windows (via MSVC/MinGW).
+6. **Code formatting:** Always run clang-format on modified files before committing.
 
 ### Common Pitfalls
 - ❌ Don't hardcode paths - use relative paths or command-line arguments
@@ -544,6 +556,7 @@ git push
 - ❌ Don't use SSE2/AVX intrinsics directly - use Highway abstractions
 - ❌ Don't modify `common.h` constants without considering impact on tests
 - ❌ Don't add heavy dependencies (OpenCV, Boost) - keep it lightweight
+- ❌ Don't commit code without running clang-format first
 
 ### Helpful Phrases for AI Context
 When asking an AI assistant for help:

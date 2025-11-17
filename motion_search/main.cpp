@@ -23,8 +23,9 @@
 
 // Input options
 ABSL_FLAG(std::string, input, "", "Input video file path (required)");
-ABSL_FLAG(int32_t, width, 0,
-          "Video width in pixels (required for raw YUV files, ignored for Y4M)");
+ABSL_FLAG(
+    int32_t, width, 0,
+    "Video width in pixels (required for raw YUV files, ignored for Y4M)");
 ABSL_FLAG(int32_t, height, 0,
           "Video height in pixels (required for raw YUV files, ignored for "
           "Y4M)");
@@ -32,10 +33,10 @@ ABSL_FLAG(int32_t, height, 0,
 // Analysis options
 ABSL_FLAG(int32_t, frames, 0,
           "Number of frames to process (0 = all frames, default: 0)");
-ABSL_FLAG(int32_t, gop_size, 150,
-          "GOP (Group of Pictures) size for encoding simulation (default: 150)");
-ABSL_FLAG(int32_t, bframes, 0,
-          "Number of consecutive B-frames (default: 0)");
+ABSL_FLAG(
+    int32_t, gop_size, 150,
+    "GOP (Group of Pictures) size for encoding simulation (default: 150)");
+ABSL_FLAG(int32_t, bframes, 0, "Number of consecutive B-frames (default: 0)");
 
 // Output options
 ABSL_FLAG(std::string, output, "",
@@ -166,8 +167,7 @@ void ParseAndValidateFlags(CTX &ctx,
   int legacy_frames = absl::GetFlag(FLAGS_n);
   if (legacy_frames > 0) {
     if (ctx.num_frames > 0 && ctx.num_frames != legacy_frames) {
-      std::cerr
-          << "Warning: Both -n and --frames specified, using --frames\n";
+      std::cerr << "Warning: Both -n and --frames specified, using --frames\n";
     } else {
       ctx.num_frames = legacy_frames;
     }
@@ -242,7 +242,8 @@ int main(int argc, char *argv[]) {
   // Set up usage message
   absl::SetProgramUsageMessage(
       "Motion Search Video Complexity Analyzer\n\n"
-      "Analyzes video complexity using motion estimation and spatial analysis.\n"
+      "Analyzes video complexity using motion estimation and spatial "
+      "analysis.\n"
       "Supports Y4M and raw YUV input formats.\n\n"
       "Usage:\n"
       "  motion_search --input=<file> --output=<file> [options]\n"
@@ -274,8 +275,7 @@ int main(int argc, char *argv[]) {
       "  -b=<n>           Same as --bframes\n");
 
   // Parse command line
-  std::vector<char *> positional =
-      absl::ParseCommandLine(argc, argv);
+  std::vector<char *> positional = absl::ParseCommandLine(argc, argv);
 
   // Convert char* vector to string vector (excluding program name)
   std::vector<std::string> positional_args;
