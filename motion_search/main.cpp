@@ -7,11 +7,14 @@
  */
 
 #include "ComplexityAnalyzer.h"
+#include "DataConverter.h"
+#include "OutputWriter.h"
 #include "Y4MSequenceReader.h"
 #include "YUVSequenceReader.h"
 
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 
@@ -43,6 +46,9 @@ ABSL_FLAG(std::string, output, "",
           "Output file path (required, use '-' for stdout)");
 ABSL_FLAG(std::string, format, "csv",
           "Output format: csv, json, xml (default: csv)");
+ABSL_FLAG(std::string, detail, "frame",
+          "Detail level: frame (per-frame data), gop (per-GOP data, default: "
+          "frame)");
 
 // Legacy support flags (mapped from old parser)
 ABSL_FLAG(int32_t, W, 0, "Legacy: same as --width");
@@ -217,23 +223,13 @@ void ParseAndValidateFlags(CTX &ctx,
     exit(1);
   }
 
-  // Note: For Phase 1, only CSV is implemented
-  if (format != "csv") {
-    std::cerr << "Warning: Only CSV format is currently implemented\n";
-    std::cerr << "JSON and XML formats will be added in Phase 2\n";
-    std::cerr << "Falling back to CSV format\n";
+  // Validate detail level
+  std::string detail = absl::GetFlag(FLAGS_detail);
+  if (detail != "frame" && detail != "gop") {
+    std::cerr << "Error: Invalid detail level '" << detail << "'\n";
+    std::cerr << "Supported detail levels: frame, gop\n";
+    exit(1);
   }
-}
-
-/**
- * @brief Print the complexity information to the output file in CSV format
- *
- * @param pOut The output file
- * @param i The complexity information
- */
-void print_compl_inf(FILE *const pOut, complexity_info_t *i) {
-  fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType, i->count_I,
-          i->count_P, i->count_B, i->error, i->bits);
 }
 
 } // namespace
@@ -265,7 +261,8 @@ int main(int argc, char *argv[]) {
       "  --frames=<n>     Number of frames to process (0 = all, default: 0)\n"
       "  --gop_size=<n>   GOP size for simulation (default: 150)\n"
       "  --bframes=<n>    Number of consecutive B-frames (default: 0)\n"
-      "  --format=<fmt>   Output format: csv (default), json, xml (Phase 2)\n"
+      "  --format=<fmt>   Output format: csv, json, xml (default: csv)\n"
+      "  --detail=<lvl>   Detail level: frame, gop (default: frame)\n"
       "\n"
       "Legacy flags (backward compatibility):\n"
       "  -W=<n>           Same as --width\n"
@@ -302,30 +299,62 @@ int main(int argc, char *argv[]) {
   analyzer.analyze();
   const auto end = std::chrono::high_resolution_clock::now();
 
-  // Open output file
-  FILE *out_fp = nullptr;
-  if (ctx.outputFile == "-") {
-    out_fp = stdout;
-  } else {
-    out_fp = fopen(ctx.outputFile.c_str(), "w");
-    if (!out_fp) {
-      std::cerr << "Error: Can't open output file " << ctx.outputFile << "\n";
-      return 1;
-    }
-  }
-  std::unique_ptr<FILE, file_closer> out(out_fp);
-
   std::cerr << "Input file: '" << ctx.inputFile << "'\n";
   std::cerr << "width: " << reader->dim().width << "\n";
   std::cerr << "height: " << reader->dim().height << "\n";
 
-  // write CSV header
-  fprintf(out.get(), "picNum,picType,count_I,count_P,count_B,error,bits\n");
-
-  // write each frame data individually
+  // Get analysis results
   vector<complexity_info_t *> info = analyzer.getInfo();
-  for_each(info.begin(), info.end(),
-           [&](complexity_info_t *i) { print_compl_inf(out.get(), i); });
+
+  // Determine input format from file extension
+  std::string input_format;
+  if (ctx.inputFile.find(".y4m") != std::string::npos) {
+    input_format = "y4m";
+  } else if (ctx.inputFile.find(".yuv") != std::string::npos) {
+    input_format = "yuv";
+  } else {
+    input_format = "unknown";
+  }
+
+  // Convert to new format
+  motion_search::AnalysisResults results =
+      motion_search::DataConverter::convert(
+          info, reader->dim().width, reader->dim().height, ctx.gop_size,
+          ctx.b_frames, input_format, ctx.inputFile);
+
+  // Get output format and detail level
+  std::string format = absl::GetFlag(FLAGS_format);
+  std::string detail = absl::GetFlag(FLAGS_detail);
+  motion_search::DetailLevel detail_level =
+      motion_search::stringToDetailLevel(detail);
+
+  // Open output stream
+  std::unique_ptr<std::ostream> out_stream;
+  std::ofstream file_stream;
+
+  if (ctx.outputFile == "-") {
+    // Use stdout
+    out_stream.reset(&std::cout);
+  } else {
+    // Open file
+    file_stream.open(ctx.outputFile);
+    if (!file_stream) {
+      std::cerr << "Error: Can't open output file " << ctx.outputFile << "\n";
+      return 1;
+    }
+    out_stream.reset(&file_stream);
+  }
+
+  // Create and use output writer
+  try {
+    auto writer = motion_search::createOutputWriter(
+        format, detail_level,
+        (ctx.outputFile == "-") ? std::cout : file_stream);
+    writer->write(results);
+  } catch (const std::exception &e) {
+    std::cerr << "Error writing output: " << e.what() << "\n";
+    return 1;
+  }
 
   const std::chrono::duration<double, std::milli> duration = end - begin;
   std::cerr << "Execution time: " << std::fixed << std::setprecision(2)

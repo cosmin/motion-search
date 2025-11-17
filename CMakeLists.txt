@@ -41,6 +41,23 @@ set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(abseil)
 
+# nlohmann/json for JSON output (Phase 2)
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.3
+)
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# tinyxml2 for XML output (Phase 2)
+FetchContent_Declare(
+  tinyxml2
+  GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+  GIT_TAG 10.0.0
+)
+FetchContent_MakeAvailable(tinyxml2)
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -61,8 +78,16 @@ add_library(motion_search_lib
     "motion_search/YUVFrame.cpp"
     "motion_search/moments.cpp"
     "motion_search/motion_search.cpp"
+    "motion_search/OutputWriter.cpp"
+    "motion_search/CSVWriter.cpp"
+    "motion_search/JSONWriter.cpp"
+    "motion_search/XMLWriter.cpp"
+    "motion_search/DataConverter.cpp"
 )
 target_clangformat_setup(motion_search_lib)
+
+# Link output writer dependencies
+target_link_libraries(motion_search_lib PUBLIC nlohmann_json::nlohmann_json tinyxml2)
 
 #
 # Create library : libmotion_search_lib_simd (conditionally uses Highway or pure C)
