@@ -13,6 +13,9 @@ include(ClangFormat)
 # SIMD support option
 option(USE_HIGHWAY_SIMD "Use Highway library for SIMD operations (recommended). If OFF, uses pure C implementations." ON)
 
+# FFmpeg support option (Phase 3)
+option(ENABLE_FFMPEG "Enable FFmpeg input support for MP4, MKV, AVI, WebM formats" OFF)
+
 # Abseil library for command-line parsing
 include(FetchContent)
 
@@ -58,6 +61,21 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tinyxml2)
 
+# FFmpeg libraries (optional, for Phase 3)
+if(ENABLE_FFMPEG)
+  message(STATUS "Building with FFmpeg input support (ENABLE_FFMPEG=ON)")
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(FFMPEG REQUIRED
+    libavformat
+    libavcodec
+    libavutil
+    libswscale
+  )
+  add_compile_definitions(HAVE_FFMPEG)
+else()
+  message(STATUS "Building without FFmpeg support (ENABLE_FFMPEG=OFF)")
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -65,7 +83,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_compile_options(-fms-extensions)
 
 # Create library : libmotion_search_lib
-add_library(motion_search_lib
+set(MOTION_SEARCH_LIB_SOURCES
     "motion_search/frame.cpp"
     "motion_search/memory.cpp"
     "motion_search/moments.disp.cpp"
@@ -84,10 +102,24 @@ add_library(motion_search_lib
     "motion_search/XMLWriter.cpp"
     "motion_search/DataConverter.cpp"
 )
+
+# Add FFmpeg reader if enabled
+if(ENABLE_FFMPEG)
+  list(APPEND MOTION_SEARCH_LIB_SOURCES "motion_search/FFmpegSequenceReader.cpp")
+endif()
+
+add_library(motion_search_lib ${MOTION_SEARCH_LIB_SOURCES})
 target_clangformat_setup(motion_search_lib)
 
-# Link output writer dependencies
+# Link output writer dependencies (Phase 2)
 target_link_libraries(motion_search_lib PUBLIC nlohmann_json::nlohmann_json tinyxml2)
+
+# Link FFmpeg libraries if enabled (Phase 3)
+if(ENABLE_FFMPEG)
+  target_include_directories(motion_search_lib PRIVATE ${FFMPEG_INCLUDE_DIRS})
+  target_link_libraries(motion_search_lib PRIVATE ${FFMPEG_LIBRARIES})
+  target_link_directories(motion_search_lib PRIVATE ${FFMPEG_LIBRARY_DIRS})
+endif()
 
 #
 # Create library : libmotion_search_lib_simd (conditionally uses Highway or pure C)

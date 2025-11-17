@@ -16,17 +16,27 @@ Contents:
 
 ## Requirements
 
-- [CMake](https://cmake.org/) (>= 3.1)
-- C++11 compatible compiler
+- [CMake](https://cmake.org/) (>= 3.10)
+- C++17 compatible compiler
 - `clang-format`
 - [Google Highway](https://github.com/google/highway) (automatically fetched by CMake)
+- [Google Abseil](https://abseil.io/) (automatically fetched by CMake)
+- **Optional:** [FFmpeg](https://ffmpeg.org/) libraries (libavformat, libavcodec, libavutil, libswscale) for MP4/MKV/WebM support
 
-Under Linux, to install CMake, install the `cmake` and `clang-format` packages from your distribution's package manager.
-
-Under macOS, you can install CMake using [Homebrew](https://brew.sh/):
+Under Linux, to install CMake and FFmpeg, install the `cmake`, `clang-format`, and `libavformat-dev` packages from your distribution's package manager:
 
 ```bash
-brew install cmake clang-format
+# Ubuntu/Debian
+sudo apt-get install cmake clang-format libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+
+# Fedora/RHEL
+sudo dnf install cmake clang-tools-extra ffmpeg-devel
+```
+
+Under macOS, you can install CMake and FFmpeg using [Homebrew](https://brew.sh/):
+
+```bash
+brew install cmake clang-format ffmpeg
 ```
 
 ## Building
@@ -60,6 +70,39 @@ cmake .. -DUSE_HIGHWAY_SIMD=OFF
 - Environments with limited build resources
 
 **Performance impact:** Pure C implementations are significantly slower (2-4x) than SIMD-optimized code, but produce identical results for testing and validation.
+
+#### FFmpeg Input Support (ENABLE_FFMPEG) - Phase 3
+
+By default, the project builds **without** FFmpeg support and can only read Y4M and raw YUV files. To enable support for additional video formats (MP4, MKV, AVI, WebM, etc.), enable FFmpeg:
+
+```shell
+cmake .. -DENABLE_FFMPEG=ON
+make -j8
+```
+
+**Requirements:**
+- FFmpeg libraries must be installed on your system (see [Requirements](#requirements))
+- pkg-config must be available to locate FFmpeg libraries
+
+**Supported formats with FFmpeg:**
+- Container formats: MP4, MKV, AVI, WebM, MOV, FLV, and more
+- Video codecs: H.264, H.265/HEVC, VP9, AV1, MPEG-4, and more
+
+**Usage with FFmpeg:**
+```shell
+# Explicitly use FFmpeg for any format
+./bin/motion_search --input=video.mp4 --use_ffmpeg --output=results.csv
+
+# Auto-detect: FFmpeg used automatically for non-YUV/Y4M files
+./bin/motion_search --input=video.mkv --output=results.csv
+```
+
+**When to enable FFmpeg:**
+- You need to analyze videos in compressed formats (MP4, MKV, etc.)
+- You want to avoid manual conversion to Y4M/YUV
+- You're building a pipeline that processes various input formats
+
+**Note:** Y4M and raw YUV files are always handled by native readers (faster and simpler), regardless of FFmpeg availability.
 
 ## Testing
 
@@ -143,19 +186,43 @@ The test suite includes:
 
 ## Running
 
-The basic usage is:
+### Modern Command-Line Syntax (Recommended)
 
-``` shell
-motion-search <input> -W=<width> -H=<height> <output>
+The modern syntax uses explicit flags with `--flag=value`:
+
+```shell
+# Y4M file (no dimensions needed)
+./bin/motion_search --input=video.y4m --output=results.csv
+
+# Raw YUV file (dimensions required)
+./bin/motion_search --input=input.yuv --width=1920 --height=1080 --output=stats.csv
+
+# MP4/MKV file (requires FFmpeg, dimensions auto-detected)
+./bin/motion_search --input=video.mp4 --use_ffmpeg --output=results.csv
+
+# With GOP and B-frame settings
+./bin/motion_search --input=video.y4m --gop_size=60 --bframes=2 --output=results.csv
 ```
 
-For example:
+### Legacy Syntax (Backward Compatible)
 
-``` shell
-motion-search input.yuv -W=1920 -H=1080 stats.txt
+The legacy syntax is still supported:
+
+```shell
+motion_search input.yuv -W=1920 -H=1080 stats.txt -g=150 -b=2
 ```
 
-The input file must be a `.yuv` or `.y4m` file.
+### Input Formats
+
+**Without FFmpeg (default build):**
+- `.y4m` - Y4M files (dimensions auto-detected)
+- `.yuv` - Raw YUV420p files (requires `--width` and `--height`)
+
+**With FFmpeg (when built with `-DENABLE_FFMPEG=ON`):**
+- `.mp4`, `.mkv`, `.avi`, `.webm`, `.mov` - Any FFmpeg-supported format
+- Use `--use_ffmpeg` flag or rely on auto-detection for non-YUV/Y4M files
+
+### Output Format
 
 The output file will be a CSV file containing the following columns:
 
@@ -171,11 +238,29 @@ The tool will print extra information to stderr, such as the number of frames pr
 
 ### Options
 
-You can use `-g` to control GOP size (default 150), `-n` to control
-number of frames to read (default is to read all) and `-b` to control
-number of consecutive B-frames in subgop (default 0).
+**Input options:**
+- `--input=<file>` - Input video file (required)
+- `--width=<n>` - Video width in pixels (required for raw YUV)
+- `--height=<n>` - Video height in pixels (required for raw YUV)
+- `--use_ffmpeg` - Use FFmpeg for input decoding (auto-detected for non-YUV/Y4M)
 
-See `motion-search -h` for more information.
+**Analysis options:**
+- `--gop_size=<n>` - GOP size for simulation (default: 150)
+- `--bframes=<n>` - Number of consecutive B-frames (default: 0)
+- `--frames=<n>` - Number of frames to process (0 = all, default: 0)
+
+**Output options:**
+- `--output=<file>` - Output CSV file (use '-' for stdout, required)
+- `--format=<fmt>` - Output format: csv (default), json, xml (Phase 2)
+
+**Legacy flags (backward compatibility):**
+- `-W=<n>` - Same as `--width`
+- `-H=<n>` - Same as `--height`
+- `-g=<n>` - Same as `--gop_size`
+- `-b=<n>` - Same as `--bframes`
+- `-n=<n>` - Same as `--frames`
+
+See `motion_search --help` for complete usage information.
 
 Note that currently when using B-frames:
 * code may read more than requested number of frames to complete last subgop
