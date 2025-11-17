@@ -79,3 +79,23 @@ else()
 endif()
 target_compile_definitions(test_integration PRIVATE TEST_DATA_DIR="${TEST_DATA_DIR}")
 gtest_discover_tests(test_integration)
+
+# Test: FFmpeg Reader Validation (only if FFmpeg is enabled)
+if(ENABLE_FFMPEG)
+  add_executable(test_ffmpeg_reader test_ffmpeg_reader.cpp)
+  if(USE_HIGHWAY_SIMD)
+    target_link_libraries(test_ffmpeg_reader
+      motion_search_lib
+      motion_search_lib_simd
+      GTest::gtest_main
+    )
+  else()
+    target_link_libraries(test_ffmpeg_reader
+      motion_search_lib
+      GTest::gtest_main
+    )
+  endif()
+  target_compile_definitions(test_ffmpeg_reader PRIVATE TEST_DATA_DIR="${TEST_DATA_DIR}")
+  gtest_discover_tests(test_ffmpeg_reader)
+  message(STATUS "FFmpeg reader tests enabled")
+endif()
