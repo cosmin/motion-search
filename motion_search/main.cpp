@@ -7,11 +7,13 @@
  */
 
 #include "ComplexityAnalyzer.h"
+#include "ComplexityNormalization.h"
 #include "Y4MSequenceReader.h"
 #include "YUVSequenceReader.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cinttypes>
 #include <iomanip>
 #include <iostream>
 
@@ -44,6 +46,19 @@ ABSL_FLAG(std::string, output, "",
 ABSL_FLAG(std::string, format, "csv",
           "Output format: csv, json, xml (default: csv)");
 
+// Phase 4: Complexity scoring options
+ABSL_FLAG(std::string, complexity_score, "v2",
+          "Unified complexity score version: v1 (bpp-based), v2 (weighted, "
+          "default)");
+ABSL_FLAG(double, weight_spatial, 0.25,
+          "Weight for spatial complexity in v2 scoring (default: 0.25)");
+ABSL_FLAG(double, weight_motion, 0.30,
+          "Weight for motion complexity in v2 scoring (default: 0.30)");
+ABSL_FLAG(double, weight_residual, 0.25,
+          "Weight for residual complexity in v2 scoring (default: 0.25)");
+ABSL_FLAG(double, weight_error, 0.20,
+          "Weight for error complexity in v2 scoring (default: 0.20)");
+
 // Legacy support flags (mapped from old parser)
 ABSL_FLAG(int32_t, W, 0, "Legacy: same as --width");
 ABSL_FLAG(int32_t, H, 0, "Legacy: same as --height");
@@ -61,6 +76,8 @@ struct CTX {
   int num_frames = 0;
   int gop_size = 150;
   int b_frames = 0;
+  std::string complexity_score = "v2";
+  complexity::ComplexityWeights weights; // Phase 4: Complexity weights
 };
 
 std::unique_ptr<IVideoSequenceReader> getReader(const std::string &filename,
@@ -223,6 +240,35 @@ void ParseAndValidateFlags(CTX &ctx,
     std::cerr << "JSON and XML formats will be added in Phase 2\n";
     std::cerr << "Falling back to CSV format\n";
   }
+
+  // Phase 4: Validate and load complexity scoring configuration
+  ctx.complexity_score = absl::GetFlag(FLAGS_complexity_score);
+  if (ctx.complexity_score != "v1" && ctx.complexity_score != "v2") {
+    std::cerr << "Error: Invalid complexity score version '"
+              << ctx.complexity_score << "'\n";
+    std::cerr << "Supported versions: v1 (bpp-based), v2 (weighted)\n";
+    exit(1);
+  }
+
+  // Load weights from flags
+  ctx.weights.w_spatial = absl::GetFlag(FLAGS_weight_spatial);
+  ctx.weights.w_motion = absl::GetFlag(FLAGS_weight_motion);
+  ctx.weights.w_residual = absl::GetFlag(FLAGS_weight_residual);
+  ctx.weights.w_error = absl::GetFlag(FLAGS_weight_error);
+
+  // Validate that weights are positive and sum to approximately 1.0
+  if (ctx.weights.w_spatial < 0.0 || ctx.weights.w_motion < 0.0 ||
+      ctx.weights.w_residual < 0.0 || ctx.weights.w_error < 0.0) {
+    std::cerr << "Error: All complexity weights must be non-negative\n";
+    exit(1);
+  }
+
+  if (!ctx.weights.isValid()) {
+    std::cerr << "Warning: Complexity weights do not sum to 1.0 (sum = "
+              << ctx.weights.sum() << ")\n";
+    std::cerr << "Weights will be used as-is, but results may not be "
+                 "normalized correctly\n";
+  }
 }
 
 /**
@@ -230,10 +276,24 @@ void ParseAndValidateFlags(CTX &ctx,
  *
  * @param pOut The output file
  * @param i The complexity information
+ * @param include_enhanced Include Phase 4 enhanced metrics (default: true)
  */
-void print_compl_inf(FILE *const pOut, complexity_info_t *i) {
-  fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType, i->count_I,
-          i->count_P, i->count_B, i->error, i->bits);
+void print_compl_inf(FILE *const pOut, complexity_info_t *i,
+                     bool include_enhanced = true) {
+  if (!include_enhanced) {
+    // Legacy format (backward compatibility)
+    fprintf(pOut, "%d,%c,%d,%d,%d,%d,%d\n", i->picNum, i->picType, i->count_I,
+            i->count_P, i->count_B, i->error, i->bits);
+  } else {
+    // Phase 4: Enhanced format with complexity metrics
+    fprintf(pOut,
+            "%d,%c,%d,%d,%d,%d,%d,%.6f,%.6f,%" PRId64
+            ",%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+            i->picNum, i->picType, i->count_I, i->count_P, i->count_B, i->error,
+            i->bits, i->spatial_variance, i->motion_magnitude, i->ac_energy,
+            i->bits_per_pixel, i->unified_score_v1, i->unified_score_v2,
+            i->norm_spatial, i->norm_motion, i->norm_residual, i->norm_error);
+  }
 }
 
 } // namespace
@@ -298,6 +358,9 @@ int main(int argc, char *argv[]) {
   ComplexityAnalyzer analyzer(reader.get(), ctx.gop_size, ctx.num_frames,
                               ctx.b_frames);
 
+  // Phase 4: Set complexity weights
+  analyzer.setComplexityWeights(ctx.weights);
+
   const auto begin = std::chrono::high_resolution_clock::now();
   analyzer.analyze();
   const auto end = std::chrono::high_resolution_clock::now();
@@ -318,14 +381,22 @@ int main(int argc, char *argv[]) {
   std::cerr << "Input file: '" << ctx.inputFile << "'\n";
   std::cerr << "width: " << reader->dim().width << "\n";
   std::cerr << "height: " << reader->dim().height << "\n";
+  std::cerr << "Complexity score version: " << ctx.complexity_score << "\n";
+  std::cerr << "Weights: spatial=" << ctx.weights.w_spatial
+            << ", motion=" << ctx.weights.w_motion
+            << ", residual=" << ctx.weights.w_residual
+            << ", error=" << ctx.weights.w_error << "\n";
 
-  // write CSV header
-  fprintf(out.get(), "picNum,picType,count_I,count_P,count_B,error,bits\n");
+  // write CSV header (Phase 4: enhanced format)
+  fprintf(out.get(), "picNum,picType,count_I,count_P,count_B,error,bits,"
+                     "spatial_variance,motion_magnitude,ac_energy,"
+                     "bits_per_pixel,unified_score_v1,unified_score_v2,"
+                     "norm_spatial,norm_motion,norm_residual,norm_error\n");
 
   // write each frame data individually
   vector<complexity_info_t *> info = analyzer.getInfo();
   for_each(info.begin(), info.end(),
-           [&](complexity_info_t *i) { print_compl_inf(out.get(), i); });
+           [&](complexity_info_t *i) { print_compl_inf(out.get(), i, true); });
 
   const std::chrono::duration<double, std::milli> duration = end - begin;
   std::cerr << "Execution time: " << std::fixed << std::setprecision(2)
