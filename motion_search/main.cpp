@@ -11,6 +11,9 @@
 #include "OutputWriter.h"
 #include "Y4MSequenceReader.h"
 #include "YUVSequenceReader.h"
+#ifdef HAVE_FFMPEG
+#include "FFmpegSequenceReader.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -50,6 +53,10 @@ ABSL_FLAG(std::string, detail, "frame",
           "Detail level: frame (per-frame data), gop (per-GOP data, default: "
           "frame)");
 
+// Input format options (Phase 3)
+ABSL_FLAG(bool, use_ffmpeg, false,
+          "Use FFmpeg for input decoding (supports MP4, MKV, AVI, WebM, etc.)");
+
 // Legacy support flags (mapped from old parser)
 ABSL_FLAG(int32_t, W, 0, "Legacy: same as --width");
 ABSL_FLAG(int32_t, H, 0, "Legacy: same as --height");
@@ -67,12 +74,30 @@ struct CTX {
   int num_frames = 0;
   int gop_size = 150;
   int b_frames = 0;
+  bool use_ffmpeg = false;
 };
 
-std::unique_ptr<IVideoSequenceReader> getReader(const std::string &filename,
-                                                const DIM dim) {
+std::unique_ptr<IVideoSequenceReader>
+getReader(const std::string &filename, const DIM dim, bool use_ffmpeg) {
   std::unique_ptr<IVideoSequenceReader> reader;
 
+  // If FFmpeg is explicitly requested, use it
+  if (use_ffmpeg) {
+#ifdef HAVE_FFMPEG
+    std::unique_ptr<FFmpegSequenceReader> p(new FFmpegSequenceReader());
+    if (p && p->Open(filename)) {
+      reader = std::move(p);
+      return reader;
+    }
+    return nullptr;
+#else
+    std::cerr << "Error: FFmpeg support not compiled in.\n";
+    std::cerr << "Rebuild with -DENABLE_FFMPEG=ON to enable FFmpeg support.\n";
+    return nullptr;
+#endif
+  }
+
+  // Auto-detect based on file extension
   const size_t pos = filename.find_last_of('.');
 
   if (std::string::npos != pos) {
@@ -81,31 +106,47 @@ std::unique_ptr<IVideoSequenceReader> getReader(const std::string &filename,
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](int c) { return (char)::tolower(c); });
 
-    unique_file_t file(fopen(filename.c_str(), "rb"));
-    if (!file) {
-      return nullptr;
+    // Try native readers first for .yuv and .y4m
+    if (ext.compare(".yuv") == 0 || ext.compare(".y4m") == 0) {
+      unique_file_t file(fopen(filename.c_str(), "rb"));
+      if (!file) {
+        return nullptr;
+      }
+
+      if (ext.compare(".yuv") == 0) {
+        std::unique_ptr<YUVSequenceReader> p(new YUVSequenceReader());
+        if (p) {
+          p->Open(std::move(file), filename, dim);
+          reader = std::move(p);
+        }
+      } else if (ext.compare(".y4m") == 0) {
+        std::unique_ptr<Y4MSequenceReader> p(new Y4MSequenceReader);
+        if (p) {
+          p->Open(std::move(file), filename);
+          reader = std::move(p);
+        }
+      }
+
+      if ((!reader) || !reader->isOpen()) {
+        return nullptr;
+      }
+
+      return reader;
     }
 
-    if (ext.compare(".yuv") == 0) {
-      std::unique_ptr<YUVSequenceReader> p(new YUVSequenceReader());
-      if (p) {
-        p->Open(std::move(file), filename, dim);
-        reader = std::move(p);
-      }
-    } else if (ext.compare(".y4m") == 0) {
-      std::unique_ptr<Y4MSequenceReader> p(new Y4MSequenceReader);
-      if (p) {
-        p->Open(std::move(file), filename);
-        reader = std::move(p);
-      }
+    // For other formats, try FFmpeg if available
+#ifdef HAVE_FFMPEG
+    std::cerr << "Info: Unknown extension '" << ext
+              << "', attempting FFmpeg decode\n";
+    std::unique_ptr<FFmpegSequenceReader> p(new FFmpegSequenceReader());
+    if (p && p->Open(filename)) {
+      reader = std::move(p);
+      return reader;
     }
+#endif
   }
 
-  if ((!reader) || !reader->isOpen()) {
-    return nullptr;
-  }
-
-  return reader;
+  return nullptr;
 }
 
 void ParseAndValidateFlags(CTX &ctx,
@@ -230,17 +271,35 @@ void ParseAndValidateFlags(CTX &ctx,
     std::cerr << "Supported detail levels: frame, gop\n";
     exit(1);
   }
+
+  // Handle FFmpeg flag
+  ctx.use_ffmpeg = absl::GetFlag(FLAGS_use_ffmpeg);
+
+#ifndef HAVE_FFMPEG
+  if (ctx.use_ffmpeg) {
+    std::cerr
+        << "Error: --use_ffmpeg specified but FFmpeg support not compiled "
+           "in\n";
+    std::cerr << "Rebuild with -DENABLE_FFMPEG=ON to enable FFmpeg support\n";
+    exit(1);
+  }
+#endif
 }
 
 } // namespace
 
 int main(int argc, char *argv[]) {
   // Set up usage message
-  absl::SetProgramUsageMessage(
+  std::string usage_message =
       "Motion Search Video Complexity Analyzer\n\n"
       "Analyzes video complexity using motion estimation and spatial "
       "analysis.\n"
-      "Supports Y4M and raw YUV input formats.\n\n"
+      "Supports Y4M and raw YUV input formats";
+#ifdef HAVE_FFMPEG
+  usage_message += ", plus FFmpeg formats (MP4, MKV, AVI, WebM, etc.)";
+#endif
+  usage_message +=
+      ".\n\n"
       "Usage:\n"
       "  motion_search --input=<file> --output=<file> [options]\n"
       "  motion_search <input_file> <output_file> [options]  (legacy syntax)\n"
@@ -248,11 +307,21 @@ int main(int argc, char *argv[]) {
       "Examples:\n"
       "  motion_search --input=video.y4m --output=results.csv\n"
       "  motion_search --input=video.yuv --width=1920 --height=1080 "
-      "--output=results.csv\n"
+      "--output=results.csv\n";
+#ifdef HAVE_FFMPEG
+  usage_message +=
+      "  motion_search --input=video.mp4 --use_ffmpeg --output=results.csv\n";
+#endif
+  usage_message +=
       "  motion_search video.y4m results.csv -g=60 -b=2  (legacy syntax)\n"
       "\n"
       "Required flags:\n"
-      "  --input=<file>   Input video file (.y4m or .yuv)\n"
+      "  --input=<file>   Input video file (.y4m or .yuv";
+#ifdef HAVE_FFMPEG
+  usage_message += ", or any FFmpeg format with --use_ffmpeg";
+#endif
+  usage_message +=
+      ")\n"
       "  --output=<file>  Output CSV file (use '-' for stdout)\n"
       "\n"
       "Optional flags:\n"
@@ -262,14 +331,21 @@ int main(int argc, char *argv[]) {
       "  --gop_size=<n>   GOP size for simulation (default: 150)\n"
       "  --bframes=<n>    Number of consecutive B-frames (default: 0)\n"
       "  --format=<fmt>   Output format: csv, json, xml (default: csv)\n"
-      "  --detail=<lvl>   Detail level: frame, gop (default: frame)\n"
-      "\n"
-      "Legacy flags (backward compatibility):\n"
-      "  -W=<n>           Same as --width\n"
-      "  -H=<n>           Same as --height\n"
-      "  -n=<n>           Same as --frames\n"
-      "  -g=<n>           Same as --gop_size\n"
-      "  -b=<n>           Same as --bframes\n");
+      "  --detail=<lvl>   Detail level: frame, gop (default: frame)\n";
+#ifdef HAVE_FFMPEG
+  usage_message +=
+      "  --use_ffmpeg     Use FFmpeg for input (supports MP4, MKV, AVI, WebM, "
+      "etc.)\n";
+#endif
+  usage_message += "\n"
+                   "Legacy flags (backward compatibility):\n"
+                   "  -W=<n>           Same as --width\n"
+                   "  -H=<n>           Same as --height\n"
+                   "  -n=<n>           Same as --frames\n"
+                   "  -g=<n>           Same as --gop_size\n"
+                   "  -b=<n>           Same as --bframes\n";
+
+  absl::SetProgramUsageMessage(usage_message);
 
   // Parse command line
   std::vector<char *> positional = absl::ParseCommandLine(argc, argv);
@@ -283,12 +359,21 @@ int main(int argc, char *argv[]) {
   CTX ctx;
   ParseAndValidateFlags(ctx, positional_args);
 
-  auto reader = getReader(ctx.inputFile, {ctx.width, ctx.height});
+  auto reader =
+      getReader(ctx.inputFile, {ctx.width, ctx.height}, ctx.use_ffmpeg);
   if (reader == nullptr) {
     std::cerr << "Error: Unsupported input format for " << ctx.inputFile
               << "\n";
+#ifdef HAVE_FFMPEG
+    std::cerr
+        << "Supported formats: .y4m, .yuv, or any FFmpeg-supported format "
+           "(MP4, MKV, AVI, WebM, etc.)\n";
+#else
     std::cerr << "Supported formats: .y4m, .yuv\n";
+#endif
     std::cerr << "For .yuv files, you must specify --width and --height\n";
+    std::cerr
+        << "For other formats, use --use_ffmpeg (requires FFmpeg support)\n";
     return 1;
   }
 
