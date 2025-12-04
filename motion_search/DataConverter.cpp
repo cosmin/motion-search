@@ -25,41 +25,34 @@ FrameData DataConverter::convertFrame(const complexity_info_t *info, int width,
   frame.estimated_bits = info->bits;
   frame.error = info->error;
 
-  // Compute complexity metrics
-  // For now, use simple heuristics based on available data
+  // Compute total blocks for MV stats
   int total_blocks =
       frame.count_intra + frame.count_inter_p + frame.count_inter_b;
-  int num_pixels = width * height;
 
-  // Spatial complexity: Higher for I-frames (more intra blocks)
-  if (total_blocks > 0) {
-    frame.complexity.spatial_complexity =
-        static_cast<double>(frame.count_intra) / total_blocks;
-  }
+  // Phase 4: Use actual computed complexity metrics
+  frame.complexity.spatial_variance = info->spatial_variance;
+  frame.complexity.motion_magnitude = info->motion_magnitude;
+  frame.complexity.ac_energy = info->ac_energy;
+  frame.complexity.error_mse = static_cast<double>(info->error);
 
-  // Motion complexity: Higher for frames with more inter blocks
-  if (total_blocks > 0) {
-    frame.complexity.motion_complexity =
-        static_cast<double>(frame.count_inter_p + frame.count_inter_b) /
-        total_blocks;
-  }
+  // Normalized metrics
+  frame.complexity.norm_spatial = info->norm_spatial;
+  frame.complexity.norm_motion = info->norm_motion;
+  frame.complexity.norm_residual = info->norm_residual;
+  frame.complexity.norm_error = info->norm_error;
 
-  // Error as MSE
-  if (num_pixels > 0) {
-    frame.complexity.error_mse = static_cast<double>(frame.error) / num_pixels;
-  }
+  // Derived metrics
+  frame.complexity.bits_per_pixel = info->bits_per_pixel;
 
-  // Residual complexity: Use bits as proxy
-  if (num_pixels > 0) {
-    frame.complexity.residual_complexity =
-        static_cast<double>(frame.estimated_bits) / num_pixels;
-  }
+  // Unified scores
+  frame.complexity.unified_score_v1 = info->unified_score_v1;
+  frame.complexity.unified_score_v2 = info->unified_score_v2;
 
-  // Unified complexity: Simple average for now (Phase 4 will improve this)
-  frame.complexity.unified_complexity = (frame.complexity.spatial_complexity +
-                                         frame.complexity.motion_complexity +
-                                         frame.complexity.residual_complexity) /
-                                        3.0;
+  // Phase 2 legacy compatibility fields
+  frame.complexity.spatial_complexity = info->spatial_variance;
+  frame.complexity.motion_complexity = info->motion_magnitude;
+  frame.complexity.residual_complexity = static_cast<double>(info->ac_energy);
+  frame.complexity.unified_complexity = info->unified_score_v2;
 
   // MV stats: Not available in current data, use defaults
   frame.mv_stats.mean_magnitude = 0.0;
@@ -97,7 +90,7 @@ void DataConverter::computeGOPData(AnalysisResults &results, int gop_size) {
       // Accumulate stats
       for (size_t j = current_gop_start; j < i; ++j) {
         gop.total_bits += results.frames[j].estimated_bits;
-        gop.avg_complexity += results.frames[j].complexity.unified_complexity;
+        gop.avg_complexity += results.frames[j].complexity.unified_score_v2;
 
         if (results.frames[j].type == FrameType::I)
           gop.i_frame_count++;
@@ -132,7 +125,7 @@ void DataConverter::computeGOPData(AnalysisResults &results, int gop_size) {
 
   for (size_t j = current_gop_start; j < results.frames.size(); ++j) {
     gop.total_bits += results.frames[j].estimated_bits;
-    gop.avg_complexity += results.frames[j].complexity.unified_complexity;
+    gop.avg_complexity += results.frames[j].complexity.unified_score_v2;
 
     if (results.frames[j].type == FrameType::I)
       gop.i_frame_count++;

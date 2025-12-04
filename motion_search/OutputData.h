@@ -61,14 +61,33 @@ struct MVStats {
 };
 
 /**
- * @brief Complexity metrics for a frame
+ * @brief Complexity metrics for a frame (Phase 4 enhanced)
  */
 struct ComplexityMetrics {
-  double spatial_complexity = 0.0;  // Variance-based
-  double motion_complexity = 0.0;   // Motion vector magnitude
-  double residual_complexity = 0.0; // AC energy
+  // Phase 4: Raw metrics
+  double spatial_variance = 0.0;    // Raw spatial variance
+  double motion_magnitude = 0.0;    // Average motion vector magnitude
+  int64_t ac_energy = 0;            // AC energy (residual complexity)
   double error_mse = 0.0;           // Reconstruction error (MSE)
-  double unified_complexity = 0.0;  // Combined score (Phase 4)
+
+  // Phase 4: Normalized metrics [0, 1]
+  double norm_spatial = 0.0;        // Normalized spatial complexity
+  double norm_motion = 0.0;         // Normalized motion complexity
+  double norm_residual = 0.0;       // Normalized residual complexity
+  double norm_error = 0.0;          // Normalized error
+
+  // Phase 4: Derived metrics
+  double bits_per_pixel = 0.0;      // Bits per pixel ratio
+
+  // Phase 4: Unified scores
+  double unified_score_v1 = 0.0;    // v1.0: bits-per-pixel based
+  double unified_score_v2 = 0.0;    // v2.0: weighted combination (default)
+
+  // Phase 2: Legacy fields (for backward compatibility with Phase 2 OutputWriter)
+  double spatial_complexity = 0.0;  // Maps to spatial_variance
+  double motion_complexity = 0.0;   // Maps to motion_magnitude
+  double residual_complexity = 0.0; // Maps to ac_energy (as double)
+  double unified_complexity = 0.0;  // Maps to unified_score_v2
 };
 
 /**
